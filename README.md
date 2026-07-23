@@ -28,10 +28,17 @@ That's the whole loop: read the tell, pick your tap.
 **The Molt** — every few rooms you reach a molt chamber and are offered **4 new
 forms — you keep 2.** Trade claws for wings, armor for speed, grow venom fangs or
 a second heart. This is your run's one big decision, and it's where builds are
-made: bleed, poison, thorns, lifesteal, crit, frenzy, and more.
+made: bleed, poison, thorns, lifesteal, crit, frenzy, and much more.
 
-Fall in battle and the run ends — but you keep how deep you reached. Then you
-crawl again, a little wiser.
+**Rarities** — the 100+ forms span five tiers: **Common → Uncommon → Rare →
+Epic → Legendary**. The deeper you descend, the better the odds of the good
+stuff. Legendaries are run-defining — revive on death, an enemy that skips turns,
+every other passive counting as one copy stronger. Duplicate forms **stack** — a
+second copy doubles the effect.
+
+**Descending** — each of the named zones is deadlier than the last: more beasts,
+poison, life-drain, enrage, and bosses that can end a run. Fall in battle and the
+run ends — but you keep how deep you reached. Then you crawl again, a little wiser.
 
 ## Tech
 Plain HTML/CSS/JS in one file. State auto-saves to `localStorage`. Audio is a
