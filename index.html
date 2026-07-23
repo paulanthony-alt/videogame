@@ -133,6 +133,7 @@
   .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
   .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
   .mod.sp{color:var(--pick2); background:#2a2350}
+  .mod.stack{color:var(--gold); background:#3a3218}
 
   .floaty{position:absolute; font-weight:900; font-size:26px; pointer-events:none; z-index:20;
     animation:floaty 1s ease-out forwards; text-shadow:0 2px 6px #000a}
@@ -267,13 +268,14 @@
 /* ============================ DATA ============================ */
 const BASE = { maxHp:30, power:4, armor:1, speed:10 };
 
+// A big pool of forms. Passives are stackable — a second form with the same
+// passive doubles its effect, so re-offered forms on deep runs stay meaningful.
 const FORMS = [
+  // --- signature passives ---
   {id:'claws',    name:'Rending Claws',   icon:'🦞', mods:{power:3},                 passive:'bleed',
     desc:'Strikes cause Bleed — 2 dmg/turn for 3 turns.'},
   {id:'wings',    name:'Gossamer Wings',  icon:'🦋', mods:{speed:20, power:-1},       passive:'flit',
     desc:'A successful Dodge counters for half your Power.'},
-  {id:'carapace', name:'Iron Carapace',   icon:'🪨', mods:{armor:3, maxHp:6, speed:-8}, passive:null,
-    desc:'A heavy, dependable shell. No tricks — just tough.'},
   {id:'fangs',    name:'Venom Fangs',     icon:'🐍', mods:{power:1},                  passive:'venom',
     desc:'Strikes add a Venom stack — 1 dmg/turn each, forever.'},
   {id:'spines',   name:'Barbed Spines',   icon:'🦔', mods:{armor:1},                  passive:'thorns',
@@ -294,6 +296,62 @@ const FORMS = [
     desc:'+4 Power while you are below half HP.'},
   {id:'glands',   name:'Adrenal Glands',  icon:'⚡', mods:{speed:12},                 passive:'riposte',
     desc:'Guarding strikes back for your full Power.'},
+  {id:'plating',  name:'Carbon Plates',   icon:'🔩', mods:{armor:1},                  passive:'plating',
+    desc:'Grow 2 shield at the end of every turn.'},
+  {id:'ambush',   name:'Ambush Fang',     icon:'🗡️', mods:{power:2},                 passive:'firststrike',
+    desc:'Your first Strike each fight is a guaranteed critical.'},
+  {id:'warmusc',  name:'War Muscle',      icon:'💢', mods:{power:1},                  passive:'rampage',
+    desc:'Each Strike permanently grants +1 Power for that fight.'},
+  {id:'turtle',   name:'Turtle Will',     icon:'🐢', mods:{armor:2},                  passive:'overguard',
+    desc:'Guarding also heals you 2 HP.'},
+  // --- second copies (stack the passives above) ---
+  {id:'edge',     name:'Serrated Edge',   icon:'🪒', mods:{power:2},                  passive:'bleed',
+    desc:'More Bleed. Stacks with other Bleed forms.'},
+  {id:'sac',      name:'Toxic Sac',       icon:'🧪', mods:{power:1, speed:2},         passive:'venom',
+    desc:'Extra Venom per Strike. Stacks with other Venom.'},
+  {id:'hooks',    name:'Barbed Hooks',    icon:'🪝', mods:{power:1},                  passive:'thorns',
+    desc:'More Thorns damage. Stacks with other Thorns.'},
+  {id:'bark',     name:'Living Bark',     icon:'🌿', mods:{maxHp:6},                  passive:'regen',
+    desc:'Stronger Regeneration. Stacks with other Regen.'},
+  {id:'leech',    name:'Leech Bite',      icon:'🧛', mods:{power:1},                  passive:'lifesteal',
+    desc:'Heal more on Strike. Stacks with other Lifesteal.'},
+  {id:'keen',     name:'Keen Eye',        icon:'👁️', mods:{speed:6},                 passive:'crit',
+    desc:'More Critical chance. Stacks with other Crit forms.'},
+  {id:'dying',    name:'Dying Light',     icon:'💫', mods:{power:2},                  passive:'frenzy',
+    desc:'More Power while low. Stacks with other Frenzy.'},
+  {id:'scar',     name:'Scar Tissue',     icon:'🩹', mods:{maxHp:6},                  passive:'tough',
+    desc:'More Armor while low. Stacks with other Tough.'},
+  {id:'blur',     name:'Blur Step',       icon:'🌫️', mods:{speed:10},               passive:'flit',
+    desc:'Faster, with a stronger Dodge counter.'},
+  {id:'quills',   name:'Quill Volley',    icon:'🌵', mods:{armor:1, speed:2},         passive:'thorns',
+    desc:'Even more Thorns. Stacks with other Thorns.'},
+  {id:'fumes',    name:'Rot Fumes',       icon:'☁️', mods:{speed:4},                  passive:'venom',
+    desc:'Adds Venom stacks. Stacks with other Venom.'},
+  // --- pure stat trades (no passive) ---
+  {id:'carapace', name:'Iron Carapace',   icon:'🪨', mods:{armor:3, maxHp:6, speed:-8}, passive:null,
+    desc:'A heavy, dependable shell. No tricks — just tough.'},
+  {id:'brute',    name:'Brute Sinew',     icon:'👹', mods:{power:5, maxHp:-6},        passive:null,
+    desc:'Raw hitting power at the cost of health.'},
+  {id:'runner',   name:'Sprint Legs',     icon:'🐆', mods:{speed:22, power:-1},       passive:null,
+    desc:'Blistering speed — dodge almost anything.'},
+  {id:'bastion',  name:'Bastion Plate',   icon:'🛡️', mods:{armor:4, speed:-4},       passive:null,
+    desc:'A wall of armor. Slow, but nothing gets through.'},
+  {id:'glass',    name:'Glass Talon',     icon:'🔪', mods:{power:6, armor:-1, maxHp:-4}, passive:null,
+    desc:'Devastating, but fragile. High risk, high reward.'},
+  {id:'stone',    name:'Stone Heart',     icon:'🗿', mods:{maxHp:18, armor:1, speed:-10}, passive:null,
+    desc:'An enormous well of health. Ponderous.'},
+  {id:'chitin',   name:'Chitin Wall',     icon:'🧱', mods:{armor:5, maxHp:4, speed:-12}, passive:null,
+    desc:'The toughest shell there is. Barely moves.'},
+  {id:'feather',  name:'Feather Down',    icon:'🪶', mods:{speed:16, power:-2},        passive:null,
+    desc:'Light as air. Trades bite for evasion.'},
+  {id:'titan',    name:'Titan Cell',      icon:'🦣', mods:{maxHp:22, speed:-8},        passive:null,
+    desc:'A colossal body. Huge HP, sluggish.'},
+  {id:'needle',   name:'Needle Point',    icon:'📍', mods:{power:4, speed:6, maxHp:-6}, passive:null,
+    desc:'Fast and sharp, but thin-skinned.'},
+  {id:'nimble',   name:'Nimble Joints',   icon:'🕷️', mods:{speed:14, power:1, maxHp:-4}, passive:null,
+    desc:'Quick and stinging. A little frail.'},
+  {id:'ox',       name:'Ox Frame',        icon:'🐂', mods:{maxHp:16, power:1, speed:-6}, passive:null,
+    desc:'Sturdy and strong. Not built for dodging.'},
 ];
 const FORM = Object.fromEntries(FORMS.map(f=>[f.id,f]));
 
@@ -368,12 +426,13 @@ function show(id){ $$('.screen').forEach(s=>s.classList.remove('on')); $('#'+id)
 // derived player stats
 function pMax(){ return BASE.maxHp + G.forms.reduce((s,id)=>s+((FORM[id].mods.maxHp)||0),0); }
 function pPow(){ let p=BASE.power + G.forms.reduce((s,id)=>s+((FORM[id].mods.power)||0),0);
-  if(hasP('frenzy') && G.hp <= pMax()/2) p+=4; return Math.max(1,p); }
+  if(G.hp <= pMax()/2) p+=4*countP('frenzy'); p+=(G.rampage||0); return Math.max(1,p); }
 function pArm(){ let a=BASE.armor + G.forms.reduce((s,id)=>s+((FORM[id].mods.armor)||0),0);
-  if(hasP('tough') && G.hp <= pMax()/2) a+=3; return Math.max(0,a); }
+  if(G.hp <= pMax()/2) a+=3*countP('tough'); return Math.max(0,a); }
 function pSpd(){ return Math.max(0, BASE.speed + G.forms.reduce((s,id)=>s+((FORM[id].mods.speed)||0),0)); }
 function hasP(k){ return G.forms.some(id=>FORM[id].passive===k); }
-function critChance(){ return 5 + Math.floor(pSpd()/4) + (hasP('crit')?25:0); }
+function countP(k){ return G.forms.reduce((n,id)=>n+(FORM[id].passive===k?1:0),0); }
+function critChance(){ return 5 + Math.floor(pSpd()/4) + 25*countP('crit'); }
 function dodgeChance(){ return clamp(45 + pSpd(), 45, 92); }
 
 /* ============================ SAVE / LOAD ============================ */
@@ -474,10 +533,16 @@ function treasureRoom(){
 function openMolt(isStart){
   G.pendingStart = !!isStart;
   const owned=new Set(G.forms);
-  const avail=FORMS.filter(f=>!owned.has(f.id));
-  // offer 4 (or fewer if running low)
-  const offer=[]; const pool=avail.slice();
-  while(offer.length<4 && pool.length) offer.push(pool.splice(rand(pool.length),1)[0]);
+  // prefer forms you don't have yet…
+  let pool=FORMS.filter(f=>!owned.has(f.id));
+  // …but if the unique pool is running low, top up with owned forms — they
+  // stack (a 2nd copy doubles the passive). This makes molts effectively endless.
+  if(pool.length<4) pool=pool.concat(FORMS.filter(f=>owned.has(f.id)));
+  const offer=[]; const p=pool.slice();
+  while(offer.length<4 && p.length){
+    const f=p.splice(rand(p.length),1)[0];
+    if(!offer.some(o=>o.id===f.id)) offer.push(f);   // no duplicate cards in one offer
+  }
   G.offer=offer.map(f=>f.id);
   selForms=[];
   sfx.molt();
@@ -485,14 +550,17 @@ function openMolt(isStart){
   show('molt');
   save();
 }
+function moltNeed(){ return Math.min(2, (G.offer||[]).length); }
 
 function renderMolt(isStart){
+  const need=moltNeed();
   $('#moltSub').innerHTML = isStart
-    ? 'You break from your egg. Choose your first <b>2</b> forms.'
-    : 'Your old shell splits away. Choose <b>2</b> new forms to grow.';
+    ? `You break from your egg. Choose your first <b>${need}</b> forms.`
+    : `Your old shell splits away. Choose <b>${need}</b> new forms to grow.`;
   const grid=$('#moltGrid'); grid.innerHTML='';
   G.offer.forEach(id=>{
     const f=FORM[id];
+    const owned = G.forms.includes(id);
     const el=document.createElement('div'); el.className='form'; el.dataset.id=id;
     const mods=[];
     for(const[k,v]of Object.entries(f.mods)){
@@ -500,6 +568,7 @@ function renderMolt(isStart){
       mods.push(`<span class="mod ${v>0?'up':'dn'}">${v>0?'+':''}${v} ${nm}</span>`);
     }
     if(f.passive) mods.push(`<span class="mod sp">✦ special</span>`);
+    if(owned) mods.push(`<span class="mod stack">⧉ stacks</span>`);
     el.innerHTML=`<div class="tick">✓</div><div class="fi">${f.icon}</div>
       <h3>${f.name}</h3><div class="mods">${mods.join('')}</div>
       <div class="fd">${f.desc}</div>`;
@@ -511,10 +580,11 @@ function renderMolt(isStart){
 }
 
 function toggleForm(id,el){
+  const need=moltNeed();
   const i=selForms.indexOf(id);
   if(i>=0){ selForms.splice(i,1); el.classList.remove('sel'); }
   else{
-    if(selForms.length>=2){ // replace oldest
+    if(selForms.length>=need){ // replace oldest
       const old=selForms.shift();
       const oe=$(`.form[data-id="${old}"]`); if(oe) oe.classList.remove('sel');
     }
@@ -523,15 +593,15 @@ function toggleForm(id,el){
   updateMoltBtn();
 }
 function updateMoltBtn(){
-  const b=$('#moltConfirm');
-  b.disabled = selForms.length!==2;
-  b.textContent = selForms.length===2 ? 'Molt into these ▸' : `Choose ${2-selForms.length} more`;
+  const b=$('#moltConfirm'); const need=moltNeed();
+  b.disabled = selForms.length!==need;
+  b.textContent = selForms.length===need ? 'Molt into these ▸' : `Choose ${need-selForms.length} more`;
 }
 
 $('#moltConfirm').onclick=()=>{
-  if(selForms.length!==2) return;
+  if(selForms.length!==moltNeed()) return;
   const before=pMax();
-  selForms.forEach(id=>{ if(!G.forms.includes(id)) G.forms.push(id); });
+  selForms.forEach(id=>{ G.forms.push(id); });   // always add (duplicates stack)
   const gain=pMax()-before;
   if(gain>0) G.hp+=gain;          // new max HP is granted as healing
   else G.hp=clamp(G.hp,0,pMax());
@@ -559,7 +629,9 @@ function startCombat(type){
     bleed:0, venom:0, intent:null, charging:false, defending:false,
   };
   G.log=[];
-  G.block = hasP('shellstart') ? 6 : 0;
+  G.block = 6*countP('shellstart');
+  G.rampage = 0;          // War Muscle power gained this fight
+  G.firstHit = true;      // Ambush Fang guaranteed first crit
   decideIntent();
   logMsg(`A <b>${tmpl.name}</b> blocks the tunnel!`);
   show('combat');
@@ -694,20 +766,25 @@ function dealToEnemy(raw, note){
 }
 
 function playerStrike(){
-  const e=G.enemy; let dmg=pPow(); let crit=false;
-  if(Math.random()*100 < critChance()){ crit=true; dmg*=2; }
+  const e=G.enemy; const base=pPow(); let dmg=base; let crit=false;
+  if((G.firstHit && hasP('firststrike')) || Math.random()*100 < critChance()){ crit=true; dmg*=2; }
+  G.firstHit=false;
   const dealt=dealToEnemy(dmg);
   if(crit){ sfx.crit(); logMsg(`⚔️ <b>CRITICAL!</b> You rip for <b>${dealt}</b>.`,'crit'); }
   else { sfx.hit(); logMsg(`⚔️ You strike for <b>${dealt}</b>.`); }
-  if(hasP('double')){ const d2=dealToEnemy(Math.floor(pPow()/2)); if(d2>0) logMsg(`  ↳ tail lashes for <b>${d2}</b>.`); }
-  if(hasP('bleed')){ e.bleed=3; }
-  if(hasP('venom')){ e.venom+=1; }
-  if(hasP('lifesteal') && e.hp>0){ const h=Math.min(2,pMax()-G.hp); if(h>0){ G.hp+=h; floaty('+'+h,'#7fe3b0',false); logMsg(`  ↳ you drain <b>${h}</b> HP.`,'good'); } }
+  for(let i=0;i<countP('double');i++){ const d2=dealToEnemy(Math.floor(base/2)); if(d2>0) logMsg(`  ↳ tail lashes for <b>${d2}</b>.`); }
+  if(hasP('bleed')) e.bleed=3;
+  if(hasP('venom')) e.venom+=countP('venom');
+  const ls=2*countP('lifesteal');
+  if(ls>0 && e.hp>0){ const h=Math.min(ls,pMax()-G.hp); if(h>0){ G.hp+=h; floaty('+'+h,'#7fe3b0',false); logMsg(`  ↳ you drain <b>${h}</b> HP.`,'good'); } }
+  if(hasP('rampage')) G.rampage=(G.rampage||0)+countP('rampage'); // grows Power for the rest of the fight
 }
 
 function playerGuard(){
   G.guarding=true; sfx.guard();
   logMsg(`🛡️ You brace behind your shell.`);
+  const heal=2*countP('overguard');
+  if(heal>0){ const h=Math.min(heal,pMax()-G.hp); if(h>0){ G.hp+=h; floaty('+'+h,'#7fe3b0',false); logMsg(`  ↳ your shell mends <b>${h}</b> HP.`,'good'); } }
   if(hasP('riposte')){ const d=dealToEnemy(pPow()); if(d>0) logMsg(`  ↳ adrenal spurs stab for <b>${d}</b>.`,'good'); }
 }
 
@@ -728,7 +805,7 @@ function enemyTurn(act){
     if(Math.random()*100 < dodgeChance()){
       sfx.dodge(); floaty('MISS','#8fd6ff',false);
       logMsg(`💨 You slip aside — <b>${e.name}</b> whiffs!`,'good');
-      if(hasP('flit')){ const d=dealToEnemy(Math.floor(pPow()/2)); if(d>0) logMsg(`  ↳ wing-flick counters for <b>${d}</b>.`,'good'); }
+      if(hasP('flit')){ const d=dealToEnemy(Math.floor(pPow()/2)*countP('flit')); if(d>0) logMsg(`  ↳ wing-flick counters for <b>${d}</b>.`,'good'); }
       G.dodging=false; return;
     } else {
       logMsg(`💨 You mistime the dodge!`,'bad');
@@ -745,7 +822,7 @@ function enemyTurn(act){
     const tag = it.type==='unleash'?'☄️':(it.type==='heavy'?'💥':'⚔️');
     logMsg(`${tag} <b>${e.name}</b> hits you for <b>${dmg}</b>.`,'bad');
     // thorns
-    if(hasP('thorns')){ const t=dealToEnemy(3); if(t>0) logMsg(`  ↳ your spines gore it for <b>${t}</b>.`,'good'); }
+    if(hasP('thorns')){ const t=dealToEnemy(3*countP('thorns')); if(t>0) logMsg(`  ↳ your spines gore it for <b>${t}</b>.`,'good'); }
   }else{
     sfx.guard(); logMsg(`🛡️ You absorb <b>${e.name}</b>'s blow.`);
   }
@@ -756,12 +833,15 @@ function endTurnTicks(){
   const e=G.enemy;
   if(e.hp>0){
     let dot=0;
-    if(e.bleed>0){ dot+=2; e.bleed--; }
+    if(e.bleed>0){ dot+=2*countP('bleed'); e.bleed--; }
     if(e.venom>0){ dot+=e.venom; }
     if(dot>0){ e.hp-=dot; floaty('-'+dot,'#c0ffc0',true);
       logMsg(`  ☠️ ${e.name} suffers <b>${dot}</b> from your toxins.`,'good'); }
   }
-  if(hasP('regen') && G.hp>0 && G.hp<pMax()){ const h=Math.min(2,pMax()-G.hp); G.hp+=h; if(h>0) floaty('+'+h,'#7fe3b0',false); }
+  const rg=2*countP('regen');
+  if(rg>0 && G.hp>0 && G.hp<pMax()){ const h=Math.min(rg,pMax()-G.hp); G.hp+=h; if(h>0) floaty('+'+h,'#7fe3b0',false); }
+  const plate=2*countP('plating');
+  if(plate>0 && G.hp>0){ G.block=Math.min(24,(G.block||0)+plate); }
 }
 
 function endCombat(won){
