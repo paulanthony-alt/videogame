@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d0b14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MOLT — a road-trip roguelike</title>
+<style>
+  :root{
+    --bg:#0d0b14; --bg2:#161225; --panel:#1d1830; --panel2:#251f3d;
+    --ink:#ece7fb; --dim:#9a91c0; --line:#332b52;
+    --hp:#e0556b; --hp2:#8f2b45; --enemy:#f0a04b; --xp:#54c6a6;
+    --gold:#f5c752; --pick:#7c6cf0; --pick2:#a99bff; --danger:#ff6b6b;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(120% 90% at 50% -10%, #201a38 0%, var(--bg) 55%);
+    color:var(--ink); font-family:'Trebuchet MS',Verdana,system-ui,sans-serif;
+    overflow:hidden; user-select:none; -webkit-user-select:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #app{
+    width:100%; max-width:520px; height:100dvh; max-height:920px;
+    position:relative; display:flex; flex-direction:column;
+    padding:env(safe-area-inset-top) 0 0;
+  }
+  .screen{position:absolute; inset:0; display:none; flex-direction:column;
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom)); overflow-y:auto; overscroll-behavior:contain}
+  .screen.on{display:flex; animation:fade .25s ease}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1}}
+  h1,h2,h3{margin:0; font-weight:800; letter-spacing:.02em}
+  .muted{color:var(--dim)}
+  .center{text-align:center}
+
+  /* ---------- Title ---------- */
+  #title{justify-content:center; align-items:center; gap:8px}
+  .logo{font-size:clamp(58px,20vw,96px); font-weight:900; letter-spacing:.08em;
+    background:linear-gradient(180deg,#fff,var(--pick2) 60%,var(--pick));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 6px 18px rgba(124,108,240,.5)); line-height:1}
+  .tagline{color:var(--dim); margin:2px 0 18px; text-align:center; max-width:300px; line-height:1.4}
+  .crest{font-size:66px; margin-bottom:4px; animation:bob 3s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-8px)}}
+
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-family:inherit; font-weight:800;
+    color:#fff; background:linear-gradient(180deg,var(--pick2),var(--pick));
+    padding:16px 22px; border-radius:16px; font-size:17px; width:100%;
+    box-shadow:var(--shadow); transition:transform .08s, filter .15s;
+  }
+  .btn:active{transform:translateY(2px) scale(.99); filter:brightness(1.1)}
+  .btn.ghost{background:var(--panel2); color:var(--ink); box-shadow:none; border:1px solid var(--line)}
+  .btn.sm{padding:11px 14px; font-size:14px; border-radius:12px; width:auto}
+  .btn:disabled{opacity:.45; cursor:default}
+  .btnrow{display:flex; gap:10px; width:100%}
+  .stack{display:flex; flex-direction:column; gap:10px; width:100%; max-width:340px}
+
+  .toprow{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .iconbtn{background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    width:42px; height:42px; border-radius:12px; font-size:18px; cursor:pointer; flex:none}
+  .chip{background:var(--panel); border:1px solid var(--line); border-radius:999px;
+    padding:6px 12px; font-size:13px; font-weight:700; color:var(--dim)}
+  .grow{flex:1}
+
+  /* ---------- Map ---------- */
+  .maptrack{display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; margin-bottom:14px}
+  .node{width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    font-size:15px; background:var(--panel2); border:1px solid var(--line); color:var(--dim); flex:none}
+  .node.done{opacity:.45}
+  .node.now{border-color:var(--pick2); box-shadow:0 0 0 3px rgba(124,108,240,.35); color:#fff; transform:scale(1.12)}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:20px; box-shadow:var(--shadow)}
+  .eventicon{font-size:60px; text-align:center; margin-bottom:8px}
+
+  /* ---------- Combat ---------- */
+  #combat{padding-top:10px}
+  .bar{height:16px; border-radius:9px; background:#0007; overflow:hidden; position:relative; border:1px solid var(--line)}
+  .bar > i{display:block; height:100%; transition:width .35s cubic-bezier(.2,.8,.2,1)}
+  .bar > span{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000a}
+  .enemybox{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; position:relative}
+  .enemyart{font-size:78px; line-height:1; margin:4px 0; display:inline-block; filter:drop-shadow(0 8px 14px rgba(0,0,0,.5))}
+  .enemyart.hit{animation:shake .3s}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px) rotate(-3deg)}75%{transform:translateX(9px) rotate(3deg)}}
+  .intent{display:inline-flex; gap:6px; align-items:center; margin-top:8px; padding:7px 14px;
+    border-radius:999px; font-weight:800; font-size:14px; border:1px solid var(--line); background:var(--panel2)}
+  .intent.big{color:var(--danger); border-color:var(--danger); box-shadow:0 0 14px rgba(255,107,107,.35)}
+  .intent.calm{color:var(--xp)}
+  .dots{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:8px; min-height:20px}
+  .dot{font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:var(--panel2); border:1px solid var(--line)}
+
+  .log{flex:1; min-height:40px; overflow-y:auto; margin:12px 0; padding:0 2px; display:flex; flex-direction:column-reverse}
+  .logline{font-size:13.5px; color:var(--dim); padding:3px 0; border-bottom:1px dashed #ffffff10}
+  .logline b{color:var(--ink)}
+  .logline.good{color:var(--xp)} .logline.bad{color:var(--hp)} .logline.crit{color:var(--gold)}
+
+  .playerbox{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px 14px}
+  .statgrid{display:flex; gap:8px; margin-top:8px}
+  .stat{flex:1; text-align:center; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px 2px}
+  .stat b{display:block; font-size:16px}
+  .stat span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em}
+  .formmini{display:flex; gap:5px; flex-wrap:wrap; margin-top:9px}
+  .formmini .f{font-size:15px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:3px 7px}
+
+  .actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-top:12px}
+  .act{padding:15px 6px; border-radius:14px; border:1px solid var(--line); background:var(--panel2);
+    color:var(--ink); font-weight:800; font-size:15px; cursor:pointer; display:flex; flex-direction:column; gap:3px; align-items:center;
+    transition:transform .08s, background .15s}
+  .act:active{transform:translateY(2px)}
+  .act .ai{font-size:24px}
+  .act .ad{font-size:10px; color:var(--dim); font-weight:700; text-transform:uppercase; letter-spacing:.04em}
+  .act.strike{background:linear-gradient(180deg,#3a2036,#2a1730); border-color:#7a2b52}
+  .act.guard{background:linear-gradient(180deg,#1c2b3a,#16202f); border-color:#2b587a}
+  .act.dodge{background:linear-gradient(180deg,#1c3a2f,#162f26); border-color:#2b7a5c}
+
+  /* ---------- Molt ---------- */
+  .moltgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0}
+  .form{background:var(--panel); border:2px solid var(--line); border-radius:16px; padding:12px; cursor:pointer;
+    position:relative; transition:transform .1s, border-color .15s; text-align:left}
+  .form:active{transform:scale(.98)}
+  .form.sel{border-color:var(--pick2); box-shadow:0 0 0 3px rgba(124,108,240,.3); background:var(--panel2)}
+  .form .fi{font-size:34px}
+  .form h3{font-size:15px; margin:4px 0}
+  .form .fd{font-size:12px; color:var(--dim); line-height:1.35}
+  .form .tick{position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%;
+    background:var(--pick); color:#fff; display:none; align-items:center; justify-content:center; font-weight:900; font-size:14px}
+  .form.sel .tick{display:flex}
+  .mods{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
+  .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
+  .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
+  .mod.sp{color:var(--pick2); background:#2a2350}
+
+  .floaty{position:absolute; font-weight:900; font-size:26px; pointer-events:none; z-index:20;
+    animation:floaty 1s ease-out forwards; text-shadow:0 2px 6px #000a}
+  @keyframes floaty{0%{opacity:1; transform:translateY(0) scale(.6)}30%{transform:translateY(-14px) scale(1.15)}100%{opacity:0; transform:translateY(-46px) scale(1)}}
+
+  .flash{position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; mix-blend-mode:screen}
+  .flash.go{animation:flash .3s}
+  @keyframes flash{0%{opacity:.28}100%{opacity:0}}
+
+  .pill{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 11px; font-size:12px; font-weight:700; margin:3px 3px 0 0}
+  .big{font-size:44px; font-weight:900}
+  hr.sep{border:none; border-top:1px solid var(--line); margin:14px 0}
+  .scrollpad{padding-bottom:6px}
+  a.link{color:var(--pick2); cursor:pointer; text-decoration:underline}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TITLE -->
+  <div id="title" class="screen">
+    <div class="crest">🦋</div>
+    <div class="logo">MOLT</div>
+    <div class="tagline">A pocket roguelike for the road. Crawl, fight, and <b>molt</b> into something new. Short runs. Saves anywhere. No twitchy aiming.</div>
+    <div class="stack">
+      <button class="btn" id="continueBtn" style="display:none">▸ Continue Run</button>
+      <button class="btn" id="newBtn">New Run</button>
+      <div class="btnrow">
+        <button class="btn ghost sm grow" id="howBtn">How to play</button>
+        <button class="btn ghost sm grow" id="muteBtn">🔊 Sound</button>
+      </div>
+      <div class="center muted" id="bestLine" style="margin-top:6px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- HOW TO -->
+  <div id="how" class="screen">
+    <div class="toprow"><button class="iconbtn" data-back>←</button><h2>How to play</h2></div>
+    <div class="card scrollpad" style="line-height:1.5">
+      <p><b>You are a small beast in a deep burrow.</b> Descend room by room. Every run takes 10–15 minutes and <b>saves after every action</b> — close the app in a tunnel, come back later, nothing lost.</p>
+      <hr class="sep">
+      <p><b>⚔️ Combat is turn-based — no aiming, no timing pressure.</b> Each turn the enemy <b>telegraphs</b> its move. Read it, then tap one action:</p>
+      <p><span class="pill">⚔️ Strike</span> deal damage — but you're exposed.<br>
+         <span class="pill">🛡️ Guard</span> soak the hit — great vs big blows.<br>
+         <span class="pill">💨 Dodge</span> gamble to avoid it entirely.</p>
+      <p class="muted">A huge <span style="color:var(--danger)">red</span> intent means guard or dodge. A calm intent means strike freely. That's the whole game — reading and choosing.</p>
+      <hr class="sep">
+      <p><b>🧬 The Molt.</b> Every few rooms you reach a molt chamber and are offered <b>4 new forms — keep 2.</b> Trade claws for wings, armor for speed. This is your run's real decision. Build a beast.</p>
+      <hr class="sep">
+      <p>Fall in battle and the run ends — but you keep how deep you got. Then you crawl again.</p>
+      <button class="btn" data-back style="margin-top:8px">Got it</button>
+    </div>
+  </div>
+
+  <!-- MAP / EVENT -->
+  <div id="map" class="screen">
+    <div class="toprow">
+      <button class="iconbtn" id="mapMenu">☰</button>
+      <div class="chip" id="zoneChip">Zone 1</div>
+      <div class="grow"></div>
+      <div class="chip" id="hpChip">❤️ 30/30</div>
+    </div>
+    <div class="maptrack" id="maptrack"></div>
+    <div id="eventArea" class="grow"></div>
+  </div>
+
+  <!-- COMBAT -->
+  <div id="combat" class="screen">
+    <div class="flash" id="flash"></div>
+    <div class="toprow">
+      <div class="chip" id="cZoneChip">Zone 1</div>
+      <div class="grow"></div>
+      <div class="chip" id="cRoomChip">Room 1</div>
+    </div>
+    <div class="enemybox">
+      <div style="font-weight:800" id="enemyName">Grub</div>
+      <div class="bar" style="margin-top:6px"><i id="enemyHpBar" style="background:linear-gradient(90deg,#f0a04b,#e0556b)"></i><span id="enemyHpTxt"></span></div>
+      <div class="enemyart" id="enemyArt">🐛</div>
+      <div id="intentWrap"></div>
+      <div class="dots" id="enemyDots"></div>
+    </div>
+    <div class="log" id="log"></div>
+    <div class="playerbox">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:22px" id="pFace">🦋</span>
+        <div class="grow"><div class="bar"><i id="pHpBar" style="background:linear-gradient(90deg,#8f2b45,#e0556b)"></i><span id="pHpTxt"></span></div></div>
+        <span id="blockChip" class="dot" style="display:none">🛡️ <b id="blockNum">0</b></span>
+      </div>
+      <div class="statgrid">
+        <div class="stat"><b id="sPow">4</b><span>Power</span></div>
+        <div class="stat"><b id="sArm">1</b><span>Armor</span></div>
+        <div class="stat"><b id="sSpd">10</b><span>Speed</span></div>
+      </div>
+      <div class="formmini" id="formMini"></div>
+    </div>
+    <div class="actions" id="actions">
+      <button class="act strike" data-act="strike"><span class="ai">⚔️</span>Strike<span class="ad" id="adStrike">4 dmg</span></button>
+      <button class="act guard" data-act="guard"><span class="ai">🛡️</span>Guard<span class="ad">soak hit</span></button>
+      <button class="act dodge" data-act="dodge"><span class="ai">💨</span>Dodge<span class="ad" id="adDodge">55%</span></button>
+    </div>
+  </div>
+
+  <!-- MOLT -->
+  <div id="molt" class="screen">
+    <div class="center" style="margin-bottom:2px">
+      <div style="font-size:46px">🧬</div>
+      <h2>The Molt Chamber</h2>
+      <div class="muted" id="moltSub">Your old shell splits. Choose <b>2</b> new forms.</div>
+    </div>
+    <div class="moltgrid" id="moltGrid"></div>
+    <button class="btn" id="moltConfirm" disabled>Choose 2 forms</button>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="over" class="screen" style="justify-content:center;align-items:center">
+    <div class="card center" style="max-width:360px">
+      <div style="font-size:64px" id="overIcon">💀</div>
+      <h1 id="overTitle" style="font-size:34px;margin:6px 0">You fell</h1>
+      <div class="muted" id="overSub" style="margin-bottom:14px"></div>
+      <div id="overStats" style="margin-bottom:16px"></div>
+      <div class="stack" style="max-width:none">
+        <button class="btn" id="overAgain">Crawl again</button>
+        <button class="btn ghost" id="overMenu">Main menu</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+"use strict";
+(function(){
+/* ============================ DATA ============================ */
+const BASE = { maxHp:30, power:4, armor:1, speed:10 };
+
+const FORMS = [
+  {id:'claws',    name:'Rending Claws',   icon:'🦞', mods:{power:3},                 passive:'bleed',
+    desc:'Strikes cause Bleed — 2 dmg/turn for 3 turns.'},
+  {id:'wings',    name:'Gossamer Wings',  icon:'🦋', mods:{speed:20, power:-1},       passive:'flit',
+    desc:'A successful Dodge counters for half your Power.'},
+  {id:'carapace', name:'Iron Carapace',   icon:'🪨', mods:{armor:3, maxHp:6, speed:-8}, passive:null,
+    desc:'A heavy, dependable shell. No tricks — just tough.'},
+  {id:'fangs',    name:'Venom Fangs',     icon:'🐍', mods:{power:1},                  passive:'venom',
+    desc:'Strikes add a Venom stack — 1 dmg/turn each, forever.'},
+  {id:'spines',   name:'Barbed Spines',   icon:'🦔', mods:{armor:1},                  passive:'thorns',
+    desc:'Anything that hits you takes 3 damage back.'},
+  {id:'maw',      name:'Gaping Maw',      icon:'🦈', mods:{power:2},                  passive:'lifesteal',
+    desc:'Heal 2 HP every time you Strike.'},
+  {id:'heart',    name:'Second Heart',    icon:'❤️', mods:{maxHp:12},                 passive:'regen',
+    desc:'Regenerate 2 HP at the end of every turn.'},
+  {id:'talons',   name:'Hooked Talons',   icon:'🦅', mods:{power:2, speed:5},         passive:'crit',
+    desc:'+25% chance your Strikes land a critical (double dmg).'},
+  {id:'shell',    name:'Molten Shell',    icon:'🐚', mods:{armor:2},                  passive:'shellstart',
+    desc:'Begin every fight already carrying a shield.'},
+  {id:'tail',     name:'Whip Tail',       icon:'🦂', mods:{power:1, speed:8},         passive:'double',
+    desc:'Your Strike lashes a second time for half Power.'},
+  {id:'hide',     name:'Grizzled Hide',   icon:'🐗', mods:{maxHp:8, armor:1},         passive:'tough',
+    desc:'+3 Armor while you are below half HP.'},
+  {id:'muscle',   name:'Frenzied Muscle', icon:'🦍', mods:{power:2},                  passive:'frenzy',
+    desc:'+4 Power while you are below half HP.'},
+  {id:'glands',   name:'Adrenal Glands',  icon:'⚡', mods:{speed:12},                 passive:'riposte',
+    desc:'Guarding strikes back for your full Power.'},
+];
+const FORM = Object.fromEntries(FORMS.map(f=>[f.id,f]));
+
+// enemy templates. dmg values derive from power at runtime.
+const BEASTS = {
+  grub:   {name:'Pallid Grub',  art:'🐛', hp:14, power:4},
+  tick:   {name:'Blood Tick',   art:'🕷️', hp:12, power:5},
+  beetle: {name:'Gnash Beetle', art:'🪲', hp:20, power:4},
+  wasp:   {name:'Rot Wasp',     art:'🐝', hp:18, power:6},
+  toad:   {name:'Bog Toad',     art:'🐸', hp:26, power:5},
+  bat:    {name:'Cave Bat',     art:'🦇', hp:16, power:6, dodgey:true},
+  serpent:{name:'Ashen Serpent',art:'🐍', hp:24, power:7},
+  mantis: {name:'Blade Mantis', art:'🦗', hp:22, power:8},
+  crab:   {name:'Gravel Crab',  art:'🦀', hp:34, power:6, armored:1},
+};
+const ELITES = {
+  spider: {name:'Broodwarden',  art:'🕸️', hp:38, power:7, boss:true},
+  slug:   {name:'Devourer Slug',art:'🐌', hp:52, power:7, armored:1, boss:true},
+  scorp:  {name:'Dune Reaver',  art:'🦂', hp:46, power:9, boss:true},
+};
+const BOSSES = [
+  {name:'The Brood Mother', art:'🕷️', hp:60, power:8, boss:true},
+  {name:'The Hollow King',  art:'👑', hp:80, power:9, boss:true, armored:1},
+  {name:'The Deep Wyrm',    art:'🐉', hp:110, power:11, boss:true, armored:1},
+];
+const POOLS = [ ['grub','tick','beetle'], ['wasp','toad','bat'], ['serpent','mantis','crab'] ];
+
+// room template per zone: c=combat e=elite M=molt T=treasure R=rest B=boss
+const TEMPLATE = ['c','c','M','c','T','e','M','R','B'];
+
+/* ============================ STATE ============================ */
+let G = null;               // current run
+const SAVE_KEY='molt_save_v1', BEST_KEY='molt_best_v1';
+let muted = localStorage.getItem('molt_mute')==='1';
+let selForms = [];          // molt selection
+let busy = false;           // lock during animations
+
+/* ============================ AUDIO ============================ */
+let AC=null;
+function beep(freq,dur,type,vol){
+  if(muted) return;
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type=type||'square'; o.frequency.value=freq;
+    g.gain.value=(vol||0.05); o.connect(g); g.connect(AC.destination);
+    const t=AC.currentTime; o.start(t);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+(dur||0.12));
+    o.stop(t+(dur||0.12));
+  }catch(e){}
+}
+const sfx={
+  hit(){beep(180,.12,'square',.06); beep(90,.16,'sawtooth',.05);},
+  crit(){beep(520,.08,'square',.07); setTimeout(()=>beep(760,.14,'square',.06),60);},
+  hurt(){beep(120,.2,'sawtooth',.07);},
+  guard(){beep(300,.1,'triangle',.05);},
+  dodge(){beep(660,.09,'sine',.05); setTimeout(()=>beep(880,.09,'sine',.04),50);},
+  pick(){beep(600,.07,'square',.05);},
+  win(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.14,'triangle',.06),i*90));},
+  lose(){[400,300,200,120].forEach((f,i)=>setTimeout(()=>beep(f,.22,'sawtooth',.06),i*140));},
+  molt(){[400,600,900].forEach((f,i)=>setTimeout(()=>beep(f,.15,'sine',.05),i*100));},
+};
+
+/* ============================ HELPERS ============================ */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const rand=n=>Math.floor(Math.random()*n);
+const pick=a=>a[rand(a.length)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function show(id){ $$('.screen').forEach(s=>s.classList.remove('on')); $('#'+id).classList.add('on'); if(G) G.screen=id; }
+
+// derived player stats
+function pMax(){ return BASE.maxHp + G.forms.reduce((s,id)=>s+((FORM[id].mods.maxHp)||0),0); }
+function pPow(){ let p=BASE.power + G.forms.reduce((s,id)=>s+((FORM[id].mods.power)||0),0);
+  if(hasP('frenzy') && G.hp <= pMax()/2) p+=4; return Math.max(1,p); }
+function pArm(){ let a=BASE.armor + G.forms.reduce((s,id)=>s+((FORM[id].mods.armor)||0),0);
+  if(hasP('tough') && G.hp <= pMax()/2) a+=3; return Math.max(0,a); }
+function pSpd(){ return Math.max(0, BASE.speed + G.forms.reduce((s,id)=>s+((FORM[id].mods.speed)||0),0)); }
+function hasP(k){ return G.forms.some(id=>FORM[id].passive===k); }
+function critChance(){ return 5 + Math.floor(pSpd()/4) + (hasP('crit')?25:0); }
+function dodgeChance(){ return clamp(45 + pSpd(), 45, 92); }
+
+/* ============================ SAVE / LOAD ============================ */
+function save(){ if(G) try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
+function loadSave(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){ return null; } }
+function clearSave(){ localStorage.removeItem(SAVE_KEY); }
+function getBest(){ return parseInt(localStorage.getItem(BEST_KEY)||'0',10); }
+function setBest(z){ if(z>getBest()) localStorage.setItem(BEST_KEY, String(z)); }
+
+/* ============================ RUN SETUP ============================ */
+function newRun(){
+  G = {
+    screen:'map', zone:1, room:0, rooms:TEMPLATE.slice(),
+    hp:BASE.maxHp, forms:[], enemy:null, log:[],
+    startForm:true, moltsDone:0, kills:0,
+  };
+  clearSave();
+  // opening molt: choose your very first 2 forms
+  openMolt(true);
+}
+
+function nextRoom(){
+  G.room++;
+  if(G.room >= G.rooms.length){
+    // zone complete -> descend
+    G.zone++;
+    G.room=0; G.rooms=TEMPLATE.slice();
+    setBest(G.zone);
+  }
+  save();
+  enterRoom();
+}
+
+function enterRoom(){
+  const t = G.rooms[G.room];
+  if(t==='c' || t==='e' || t==='B'){ startCombat(t); }
+  else if(t==='M'){ openMolt(false); }
+  else if(t==='T'){ treasureRoom(); }
+  else if(t==='R'){ restRoom(); }
+  renderMapHeader();
+}
+
+/* ============================ MAP / EVENT SCREEN ============================ */
+function renderMapHeader(){
+  $('#zoneChip').textContent = 'Zone '+G.zone;
+  $('#hpChip').textContent = '❤️ '+G.hp+'/'+pMax();
+  const track=$('#maptrack'); track.innerHTML='';
+  const glyph={c:'⚔️',e:'☠️',M:'🧬',T:'💎',R:'🔥',B:'🐉'};
+  G.rooms.forEach((t,i)=>{
+    const d=document.createElement('div');
+    d.className='node'+(i<G.room?' done':'')+(i===G.room?' now':'');
+    d.textContent=glyph[t]; track.appendChild(d);
+  });
+}
+
+function eventCard(icon, title, bodyHtml, btnLabel, onClick){
+  show('map'); renderMapHeader();
+  const a=$('#eventArea');
+  a.innerHTML = `<div class="card"><div class="eventicon">${icon}</div>
+    <h2 class="center">${title}</h2>
+    <div class="muted center" style="margin:8px 0 14px;line-height:1.5">${bodyHtml}</div>
+    <div id="evtBtns"></div></div>`;
+  const wrap=$('#evtBtns');
+  const b=document.createElement('button'); b.className='btn'; b.textContent=btnLabel;
+  b.onclick=onClick; wrap.appendChild(b);
+  return wrap;
+}
+
+function restRoom(){
+  const heal=Math.round(pMax()*0.4);
+  eventCard('🔥','A Warm Hollow',
+    `You curl into a pocket of glowing spores and mend your wounds.<br><b style="color:var(--xp)">Recover ${heal} HP.</b>`,
+    'Rest & continue', ()=>{ G.hp=clamp(G.hp+heal,0,pMax()); save(); nextRoom(); });
+}
+
+function treasureRoom(){
+  const opts=[
+    {icon:'💪',label:'+3 Power core',apply:()=>{ BASE.power+=3; }},
+    {icon:'🩸',label:'+8 Max HP gland',apply:()=>{ BASE.maxHp+=8; G.hp+=8; }},
+    {icon:'🛡️',label:'+2 Armor plate',apply:()=>{ BASE.armor+=2; }},
+    {icon:'🌀',label:'+14 Speed nerve',apply:()=>{ BASE.speed+=14; }},
+  ];
+  const two=[]; const pool=opts.slice();
+  two.push(pool.splice(rand(pool.length),1)[0]);
+  two.push(pool.splice(rand(pool.length),1)[0]);
+  const wrap=eventCard('💎','A Buried Gland',
+    'You find a still-pulsing organ. Absorb it — this bonus is permanent for the run.','',()=>{});
+  wrap.innerHTML='';
+  two.forEach(o=>{
+    const b=document.createElement('button'); b.className='btn'; b.style.marginBottom='10px';
+    b.innerHTML=`${o.icon} &nbsp;${o.label}`;
+    b.onclick=()=>{ o.apply(); sfx.pick(); save(); nextRoom(); };
+    wrap.appendChild(b);
+  });
+}
+
+/* ============================ MOLT ============================ */
+function openMolt(isStart){
+  G.pendingStart = !!isStart;
+  const owned=new Set(G.forms);
+  const avail=FORMS.filter(f=>!owned.has(f.id));
+  // offer 4 (or fewer if running low)
+  const offer=[]; const pool=avail.slice();
+  while(offer.length<4 && pool.length) offer.push(pool.splice(rand(pool.length),1)[0]);
+  G.offer=offer.map(f=>f.id);
+  selForms=[];
+  sfx.molt();
+  renderMolt(isStart);
+  show('molt');
+  save();
+}
+
+function renderMolt(isStart){
+  $('#moltSub').innerHTML = isStart
+    ? 'You break from your egg. Choose your first <b>2</b> forms.'
+    : 'Your old shell splits away. Choose <b>2</b> new forms to grow.';
+  const grid=$('#moltGrid'); grid.innerHTML='';
+  G.offer.forEach(id=>{
+    const f=FORM[id];
+    const el=document.createElement('div'); el.className='form'; el.dataset.id=id;
+    const mods=[];
+    for(const[k,v]of Object.entries(f.mods)){
+      const nm={power:'PWR',armor:'ARM',speed:'SPD',maxHp:'HP'}[k];
+      mods.push(`<span class="mod ${v>0?'up':'dn'}">${v>0?'+':''}${v} ${nm}</span>`);
+    }
+    if(f.passive) mods.push(`<span class="mod sp">✦ special</span>`);
+    el.innerHTML=`<div class="tick">✓</div><div class="fi">${f.icon}</div>
+      <h3>${f.name}</h3><div class="mods">${mods.join('')}</div>
+      <div class="fd">${f.desc}</div>`;
+    el.onclick=()=>toggleForm(id,el);
+    if(selForms.includes(id)) el.classList.add('sel');
+    grid.appendChild(el);
+  });
+  updateMoltBtn();
+}
+
+function toggleForm(id,el){
+  const i=selForms.indexOf(id);
+  if(i>=0){ selForms.splice(i,1); el.classList.remove('sel'); }
+  else{
+    if(selForms.length>=2){ // replace oldest
+      const old=selForms.shift();
+      const oe=$(`.form[data-id="${old}"]`); if(oe) oe.classList.remove('sel');
+    }
+    selForms.push(id); el.classList.add('sel'); sfx.pick();
+  }
+  updateMoltBtn();
+}
+function updateMoltBtn(){
+  const b=$('#moltConfirm');
+  b.disabled = selForms.length!==2;
+  b.textContent = selForms.length===2 ? 'Molt into these ▸' : `Choose ${2-selForms.length} more`;
+}
+
+$('#moltConfirm').onclick=()=>{
+  if(selForms.length!==2) return;
+  const before=pMax();
+  selForms.forEach(id=>{ if(!G.forms.includes(id)) G.forms.push(id); });
+  const gain=pMax()-before;
+  if(gain>0) G.hp+=gain;          // new max HP is granted as healing
+  else G.hp=clamp(G.hp,0,pMax());
+  G.moltsDone++;
+  G.offer=null; selForms=[];
+  sfx.molt();
+  save();
+  if(G.pendingStart){ G.pendingStart=false; enterRoom(); }
+  else nextRoom();
+};
+
+/* ============================ COMBAT ============================ */
+function startCombat(type){
+  let tmpl, isBoss=false;
+  const zi=Math.min(G.zone-1, POOLS.length-1);
+  if(type==='B'){ tmpl=BOSSES[Math.min(G.zone-1, BOSSES.length-1)]; isBoss=true; }
+  else if(type==='e'){ tmpl=pick(Object.values(ELITES)); isBoss=true; }
+  else { tmpl=BEASTS[pick(POOLS[zi])]; }
+  const scale=1 + 0.32*(G.zone-1);
+  const eHp=Math.round(tmpl.hp*scale*(type==='e'?1.15:1));
+  const ePow=Math.round(tmpl.power*scale);
+  G.enemy={
+    name:tmpl.name, art:tmpl.art, hp:eHp, maxHp:eHp, power:ePow,
+    armor:tmpl.armored||0, boss:!!tmpl.boss||isBoss, dodgey:!!tmpl.dodgey,
+    bleed:0, venom:0, intent:null, charging:false, defending:false,
+  };
+  G.log=[];
+  G.block = hasP('shellstart') ? 6 : 0;
+  decideIntent();
+  logMsg(`A <b>${tmpl.name}</b> blocks the tunnel!`);
+  show('combat');
+  renderCombat();
+  save();
+}
+
+function decideIntent(){
+  const e=G.enemy;
+  if(e.charging){ // release
+    e.intent={type:'unleash', dmg:Math.round(e.power*2.4)};
+    e.charging=false; return;
+  }
+  const roll=Math.random();
+  if(e.boss){
+    if(roll<0.30) e.intent={type:'attack', dmg:e.power};
+    else if(roll<0.52) e.intent={type:'heavy', dmg:Math.round(e.power*1.7)};
+    else if(roll<0.72){ e.intent={type:'charge'}; e.charging=true; }
+    else if(roll<0.85) e.intent={type:'defend'};
+    else e.intent={type:'attack', dmg:e.power};
+  }else{
+    if(roll<0.55) e.intent={type:'attack', dmg:e.power};
+    else if(roll<0.80) e.intent={type:'heavy', dmg:Math.round(e.power*1.7)};
+    else e.intent={type:'defend'};
+  }
+}
+
+function intentHtml(){
+  const e=G.enemy, it=e.intent;
+  let cls='intent', icon='⚔️', txt='';
+  if(it.type==='attack'){ txt=`Attacks — <b>${previewDmg(it.dmg)}</b>`; }
+  else if(it.type==='heavy'){ icon='💥'; cls+=' big'; txt=`Heavy Blow — <b>${previewDmg(it.dmg)}</b>`; }
+  else if(it.type==='unleash'){ icon='☄️'; cls+=' big'; txt=`UNLEASH — <b>${previewDmg(it.dmg)}</b>!`; }
+  else if(it.type==='charge'){ icon='🌀'; cls+=' calm'; txt=`Charging… <span class="muted">(vulnerable!)</span>`; }
+  else if(it.type==='defend'){ icon='🛡️'; cls+=' calm'; txt=`Bracing — takes half damage`; }
+  return `<div class="${cls}">${icon} ${txt}</div>`;
+}
+// how much would actually land through current armor (rough preview)
+function previewDmg(raw){ return Math.max(0, raw - pArm()) + ' dmg'; }
+
+function renderCombat(){
+  const e=G.enemy;
+  $('#cZoneChip').textContent='Zone '+G.zone;
+  $('#cRoomChip').textContent=(e.boss?'⚠ ':'')+(e.boss?'Boss':'Room '+(G.room+1));
+  $('#enemyName').textContent=e.name+(e.armor?' 🛡'+e.armor:'');
+  $('#enemyArt').textContent=e.art;
+  const ep=clamp(e.hp/e.maxHp*100,0,100);
+  $('#enemyHpBar').style.width=ep+'%';
+  $('#enemyHpTxt').textContent=Math.max(0,e.hp)+' / '+e.maxHp;
+  $('#intentWrap').innerHTML=intentHtml();
+  const dots=[];
+  if(e.bleed>0) dots.push(`<span class="dot" style="color:#ff9db0">🩸 Bleed ${e.bleed}</span>`);
+  if(e.venom>0) dots.push(`<span class="dot" style="color:#a0e0a0">☠️ Venom ${e.venom}</span>`);
+  if(e.intent.type==='charge') dots.push(`<span class="dot" style="color:#f0c040">✦ Vulnerable</span>`);
+  $('#enemyDots').innerHTML=dots.join('');
+
+  // player
+  const mx=pMax();
+  $('#pFace').textContent = G.forms.length? FORM[G.forms[G.forms.length-1]].icon : '🥚';
+  $('#pHpBar').style.width=clamp(G.hp/mx*100,0,100)+'%';
+  $('#pHpTxt').textContent=Math.max(0,G.hp)+' / '+mx;
+  $('#sPow').textContent=pPow(); $('#sArm').textContent=pArm(); $('#sSpd').textContent=pSpd();
+  $('#adStrike').textContent=pPow()+' dmg';
+  $('#adDodge').textContent=dodgeChance()+'%';
+  $('#blockChip').style.display = G.block>0 ? 'inline-block':'none';
+  $('#blockNum').textContent=G.block;
+  const fm=$('#formMini'); fm.innerHTML='';
+  G.forms.forEach(id=>{ const s=document.createElement('span'); s.className='f'; s.textContent=FORM[id].icon; s.title=FORM[id].name; fm.appendChild(s); });
+  renderLog();
+}
+
+function renderLog(){
+  const l=$('#log'); l.innerHTML='';
+  G.log.slice(-14).forEach(m=>{
+    const d=document.createElement('div'); d.className='logline'+(m.cls?' '+m.cls:''); d.innerHTML=m.t; l.appendChild(d);
+  });
+}
+function logMsg(t,cls){ G.log.push({t,cls}); if(G.log.length>40) G.log.shift(); }
+
+function floaty(text,color,onEnemy){
+  const host = onEnemy ? $('#enemybox')||$('.enemybox') : $('.playerbox');
+  const box = onEnemy ? $('.enemybox') : $('.playerbox');
+  if(!box) return;
+  const f=document.createElement('div'); f.className='floaty'; f.textContent=text; f.style.color=color;
+  f.style.left=(30+rand(40))+'%'; f.style.top=onEnemy?'40%':'0%';
+  box.style.position='relative'; box.appendChild(f);
+  setTimeout(()=>f.remove(),1000);
+}
+function shakeEnemy(){ const a=$('#enemyArt'); a.classList.remove('hit'); void a.offsetWidth; a.classList.add('hit'); }
+function flashRed(){ const f=$('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+
+// ---- action handling ----
+$('#actions').addEventListener('click',e=>{
+  const b=e.target.closest('.act'); if(!b||busy||!G||!G.enemy) return;
+  doAction(b.dataset.act);
+});
+
+function doAction(act){
+  busy=true;
+  const e=G.enemy;
+  if(act==='strike') playerStrike();
+  else if(act==='guard') playerGuard();
+  else if(act==='dodge') playerDodge();
+  renderCombat();
+
+  if(e.hp<=0){ endCombat(true); return; }
+
+  // enemy resolves (unless defending/charging handled inside)
+  setTimeout(()=>{
+    enemyTurn(act);
+    endTurnTicks();
+    renderCombat();
+    if(G.hp<=0){ endCombat(false); return; }
+    if(e.hp<=0){ endCombat(true); return; }
+    decideIntent();
+    renderCombat();
+    save();
+    busy=false;
+  }, 420);
+}
+
+function dealToEnemy(raw, note){
+  const e=G.enemy;
+  let dmg=raw;
+  if(e.intent && e.intent.type==='charge') dmg=Math.round(dmg*1.5); // vulnerable
+  else if(e.intent && e.intent.type==='defend') dmg=Math.round(dmg*0.5); // bracing
+  dmg=Math.max(0, dmg - (e.armor||0));
+  e.hp-=dmg;
+  shakeEnemy();
+  floaty('-'+dmg, '#ffd36b', true);
+  return dmg;
+}
+
+function playerStrike(){
+  const e=G.enemy; let dmg=pPow(); let crit=false;
+  if(Math.random()*100 < critChance()){ crit=true; dmg*=2; }
+  const dealt=dealToEnemy(dmg);
+  if(crit){ sfx.crit(); logMsg(`⚔️ <b>CRITICAL!</b> You rip for <b>${dealt}</b>.`,'crit'); }
+  else { sfx.hit(); logMsg(`⚔️ You strike for <b>${dealt}</b>.`); }
+  if(hasP('double')){ const d2=dealToEnemy(Math.floor(pPow()/2)); if(d2>0) logMsg(`  ↳ tail lashes for <b>${d2}</b>.`); }
+  if(hasP('bleed')){ e.bleed=3; }
+  if(hasP('venom')){ e.venom+=1; }
+  if(hasP('lifesteal') && e.hp>0){ const h=Math.min(2,pMax()-G.hp); if(h>0){ G.hp+=h; floaty('+'+h,'#7fe3b0',false); logMsg(`  ↳ you drain <b>${h}</b> HP.`,'good'); } }
+}
+
+function playerGuard(){
+  G.guarding=true; sfx.guard();
+  logMsg(`🛡️ You brace behind your shell.`);
+  if(hasP('riposte')){ const d=dealToEnemy(pPow()); if(d>0) logMsg(`  ↳ adrenal spurs stab for <b>${d}</b>.`,'good'); }
+}
+
+function playerDodge(){
+  G.dodging=true;
+  // resolution happens in enemyTurn (needs to know if there's an attack)
+}
+
+function enemyTurn(act){
+  const e=G.enemy, it=e.intent;
+  // no attack on defend / charge
+  if(it.type==='defend'){ logMsg(`<b>${e.name}</b> braces itself.`); G.guarding=G.dodging=false; return; }
+  if(it.type==='charge'){ logMsg(`<b>${e.name}</b> coils, gathering force…`); G.guarding=G.dodging=false; return; }
+
+  let raw=it.dmg;
+  // DODGE
+  if(act==='dodge'){
+    if(Math.random()*100 < dodgeChance()){
+      sfx.dodge(); floaty('MISS','#8fd6ff',false);
+      logMsg(`💨 You slip aside — <b>${e.name}</b> whiffs!`,'good');
+      if(hasP('flit')){ const d=dealToEnemy(Math.floor(pPow()/2)); if(d>0) logMsg(`  ↳ wing-flick counters for <b>${d}</b>.`,'good'); }
+      G.dodging=false; return;
+    } else {
+      logMsg(`💨 You mistime the dodge!`,'bad');
+    }
+  }
+  // compute mitigation
+  let armor=pArm();
+  if(act==='guard') armor=armor*2 + 2;   // guarding roughly doubles armor + a bit
+  let dmg=Math.max(0, raw - armor);
+  // block absorbs
+  if(G.block>0 && dmg>0){ const ab=Math.min(G.block,dmg); G.block-=ab; dmg-=ab; }
+  if(dmg>0){
+    G.hp-=dmg; sfx.hurt(); flashRed(); floaty('-'+dmg,'#ff8080',false);
+    const tag = it.type==='unleash'?'☄️':(it.type==='heavy'?'💥':'⚔️');
+    logMsg(`${tag} <b>${e.name}</b> hits you for <b>${dmg}</b>.`,'bad');
+    // thorns
+    if(hasP('thorns')){ const t=dealToEnemy(3); if(t>0) logMsg(`  ↳ your spines gore it for <b>${t}</b>.`,'good'); }
+  }else{
+    sfx.guard(); logMsg(`🛡️ You absorb <b>${e.name}</b>'s blow.`);
+  }
+  G.guarding=G.dodging=false;
+}
+
+function endTurnTicks(){
+  const e=G.enemy;
+  if(e.hp>0){
+    let dot=0;
+    if(e.bleed>0){ dot+=2; e.bleed--; }
+    if(e.venom>0){ dot+=e.venom; }
+    if(dot>0){ e.hp-=dot; floaty('-'+dot,'#c0ffc0',true);
+      logMsg(`  ☠️ ${e.name} suffers <b>${dot}</b> from your toxins.`,'good'); }
+  }
+  if(hasP('regen') && G.hp>0 && G.hp<pMax()){ const h=Math.min(2,pMax()-G.hp); G.hp+=h; if(h>0) floaty('+'+h,'#7fe3b0',false); }
+}
+
+function endCombat(won){
+  busy=true;
+  if(won){
+    sfx.win();
+    G.kills++;
+    // render the killing blow with the enemy still on screen, THEN clear it
+    logMsg(`✔️ The beast falls still.`,'good'); renderCombat();
+    setTimeout(()=>{ G.enemy=null; save(); busy=false; nextRoom(); }, 650);
+  }else{
+    sfx.lose();
+    renderCombat();
+    setTimeout(()=>gameOver(), 700);
+  }
+}
+
+/* ============================ GAME OVER ============================ */
+function gameOver(){
+  setBest(G.zone);
+  clearSave();
+  const depth = `Zone ${G.zone}, room ${G.room+1}`;
+  $('#overTitle').textContent = 'You fell';
+  $('#overIcon').textContent='💀';
+  $('#overSub').textContent = `Your shell cracks for the last time in ${depth}.`;
+  $('#overStats').innerHTML =
+    `<div class="big" style="color:var(--pick2)">Zone ${G.zone}</div>
+     <div class="muted">${G.kills} beasts slain · ${G.moltsDone} molts · deepest ever: Zone ${getBest()}</div>
+     <div style="margin-top:8px">${G.forms.map(id=>FORM[id].icon).join(' ')||'—'}</div>`;
+  G=null;
+  show('over');
+}
+
+function victory(){ /* endless — no hard win; depth is the score */ }
+
+/* ============================ WIRING ============================ */
+$('#newBtn').onclick=()=>{ resetBase(); newRun(); };
+$('#continueBtn').onclick=()=>{ resumeRun(); };
+$('#howBtn').onclick=()=>show('how');
+$$('[data-back]').forEach(b=>b.onclick=()=>show('title'));
+$('#overAgain').onclick=()=>{ resetBase(); newRun(); };
+$('#overMenu').onclick=()=>{ refreshTitle(); show('title'); };
+$('#mapMenu').onclick=()=>{ save(); refreshTitle(); show('title'); };
+$('#muteBtn').onclick=()=>{ muted=!muted; localStorage.setItem('molt_mute',muted?'1':'0'); updateMute(); if(!muted) sfx.pick(); };
+
+function updateMute(){ $('#muteBtn').textContent = muted?'🔇 Muted':'🔊 Sound'; }
+
+// BASE stats are mutated by treasure rooms; reset per run
+let BASE_DEFAULT={...BASE};
+function resetBase(){ Object.assign(BASE, BASE_DEFAULT); }
+
+function resumeRun(){
+  const s=loadSave(); if(!s) return;
+  // treasure bonuses were baked into BASE and NOT saved separately;
+  // to keep saves robust we store deltas — recompute from saved base if present
+  resetBase();
+  if(s.base) Object.assign(BASE, s.base);
+  G=s;
+  const scr=G.screen||'map';
+  if(scr==='combat' && G.enemy){ show('combat'); renderCombat(); busy=false; }
+  else if(scr==='molt' && G.offer){ selForms=[]; renderMolt(!!G.pendingStart); show('molt'); }
+  else { enterRoom(); }
+}
+
+// persist BASE alongside G so treasure bonuses survive reload
+const _save=save;
+save=function(){ if(G){ G.base={...BASE}; } _save(); };
+
+function refreshTitle(){
+  const s=loadSave();
+  $('#continueBtn').style.display = s ? 'block':'none';
+  const best=getBest();
+  $('#bestLine').innerHTML = best ? `Deepest crawl: <b>Zone ${best}</b>` : 'No crawl yet — good luck down there.';
+  updateMute();
+}
+
+// boot
+refreshTitle();
+updateMute();
+show('title');
+// resume audio context on first touch (mobile autoplay policy)
+document.addEventListener('touchstart',()=>{ if(AC && AC.state==='suspended') AC.resume(); },{once:false});
+window.addEventListener('beforeunload', save);
+})();
+</script>
+</body>
+</html>
