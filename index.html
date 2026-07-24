@@ -152,39 +152,24 @@
   .esub{color:var(--dim); font-size:12px; font-style:italic; margin-top:1px}
 
   /* ---------- Molt ---------- */
-  /* compact by default (4 small tiles), expands to full detail via the arrow */
-  .moltgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:12px 0}
-  .form{background:var(--panel); border:2px solid var(--rc,var(--line)); border-radius:14px; padding:9px 6px 10px; cursor:pointer;
-    position:relative; transition:transform .1s, box-shadow .15s; text-align:center;
+  /* always full detail so you can read exactly what each form does */
+  .moltgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0}
+  .form{background:var(--panel); border:2px solid var(--rc,var(--line)); border-radius:16px; padding:12px 12px 13px; cursor:pointer;
+    position:relative; transition:transform .1s, box-shadow .15s; text-align:left;
     box-shadow:0 0 0 0 var(--rc); overflow:hidden}
   .form::before{content:''; position:absolute; inset:0 0 auto 0; height:3px; background:var(--rc,var(--line))}
   .form.r-epic{box-shadow:0 0 16px -4px var(--rc)}
   .form.r-legendary{box-shadow:0 0 22px -3px var(--rc); animation:legpulse 2.4s ease-in-out infinite}
   @keyframes legpulse{50%{box-shadow:0 0 30px 0px var(--rc)}}
-  .form:active{transform:scale(.97)}
+  .form:active{transform:scale(.98)}
   .form.sel{box-shadow:0 0 0 3px var(--rc), 0 0 18px -2px var(--rc); background:var(--panel2)}
-  .form .rlabel{font-size:8.5px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; margin-bottom:1px}
-  .form .fi{font-size:30px; line-height:1}
-  .form h3{font-size:10.5px; margin:2px 0 0; line-height:1.15}
-  .form .fd{font-size:12px; color:var(--dim); line-height:1.35; margin-top:4px; display:none}
-  .form .mods{display:none}
-  .form .tick{position:absolute; top:5px; right:5px; width:20px; height:20px; border-radius:50%;
-    background:var(--rc,var(--pick)); color:#0d0b14; display:none; align-items:center; justify-content:center; font-weight:900; font-size:12px; z-index:2}
+  .form .rlabel{font-size:10px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px}
+  .form .fi{font-size:34px; line-height:1}
+  .form h3{font-size:15px; margin:3px 0; line-height:1.15}
+  .form .fd{font-size:12px; color:var(--dim); line-height:1.35; margin-top:4px}
+  .form .tick{position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%;
+    background:var(--rc,var(--pick)); color:#0d0b14; display:none; align-items:center; justify-content:center; font-weight:900; font-size:14px; z-index:2}
   .form.sel .tick{display:flex}
-  /* expanded: full 2x2 cards with mods + descriptions */
-  .moltgrid.expanded{grid-template-columns:1fr 1fr; gap:10px}
-  .moltgrid.expanded .form{padding:12px 12px 13px; text-align:left; border-radius:16px}
-  .moltgrid.expanded .form .rlabel{font-size:10px}
-  .moltgrid.expanded .form .fi{font-size:34px}
-  .moltgrid.expanded .form h3{font-size:15px; margin:3px 0}
-  .moltgrid.expanded .form .fd{display:block}
-  .moltgrid.expanded .form .mods{display:flex}
-  .moltgrid.expanded .form .tick{width:24px; height:24px; font-size:14px; top:8px; right:8px}
-  .expandbtn{display:flex; align-items:center; justify-content:center; gap:7px; width:100%;
-    background:var(--panel2); border:1px solid var(--line); color:var(--dim); border-radius:12px;
-    padding:9px; font-family:inherit; font-weight:800; font-size:13px; cursor:pointer; margin-bottom:10px}
-  .expandbtn .arw{display:inline-block; transition:transform .2s; font-size:15px}
-  .expandbtn.open .arw{transform:rotate(180deg)}
   .mods{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
   .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
   .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
@@ -323,7 +308,6 @@
       <div class="muted" id="moltSub">Your old shell splits. Choose <b>2</b> new forms.</div>
     </div>
     <div class="moltgrid" id="moltGrid"></div>
-    <button class="expandbtn" id="moltExpand"><span class="arw">⌄</span> <span id="expandLbl">Show full details</span></button>
     <button class="btn" id="moltConfirm" disabled>Choose 2 forms</button>
   </div>
 
@@ -517,8 +501,7 @@ const BOSSES = [
   {name:'The Bone Colossus', sub:'BOSS · a mountain that walks', kind:'colossus', hp:200, power:13, boss:true, armored:2, enrage:true},
   {name:'The Devouring Dark',sub:'BOSS · the end of the burrow', kind:'darkend',  hp:260, power:15, boss:true, enrage:true, vampiric:true},
 ];
-const FINAL_ZONE = 100;   // the Legendary God's Lair — the world stops changing here
-// the ruler of the Empyrean Throne — faced from the final Legendary zone onward
+// the ruler of the Empyrean Throne — faced at the summit of every 1000-level cycle
 const GOD_BOSS = {name:'Zephyrion, the Deathless', sub:'BOSS · a god upon the marble throne', kind:'god',
   hp:360, power:17, boss:true, armored:2, enrage:true, vampiric:true};
 const POOLS = [
@@ -761,6 +744,7 @@ function openMolt(isStart){
     const rest=FORMS.filter(f=>!offer.some(o=>o.id===f.id));
     while(offer.length<4 && rest.length) offer.push(rest.splice(rand(rest.length),1)[0]);
   }
+  offer.sort((a,b)=>RARITY_ORDER.indexOf(b.rarity)-RARITY_ORDER.indexOf(a.rarity)); // best first
   G.offer=offer.map(f=>f.id);
   selForms=[];
   sfx.molt();
@@ -776,14 +760,12 @@ function renderMolt(isStart){
     ? `You break from your egg. Choose your first <b>${need}</b> forms.`
     : `Your old shell splits away. Choose <b>${need}</b> new forms to grow.`;
   const grid=$('#moltGrid'); grid.innerHTML='';
-  grid.classList.remove('expanded');   // start compact each molt
-  const xb=$('#moltExpand'); if(xb){ xb.classList.remove('open'); $('#expandLbl').textContent='Show full details'; }
-  G.offer.forEach((id,i)=>{
+  const order=G.offer.slice().sort((a,b)=>RARITY_ORDER.indexOf(FORM[b].rarity)-RARITY_ORDER.indexOf(FORM[a].rarity));
+  order.forEach((id)=>{
     const f=FORM[id];
     const owned = G.forms.includes(id);
     const rc=RARITY[f.rarity].color;
     const el=document.createElement('div'); el.className='form r-'+f.rarity; el.dataset.id=id;
-    el.dataset.idx=i; el.dataset.rank=RARITY_ORDER.indexOf(f.rarity);
     el.style.setProperty('--rc', rc);
     const mods=[];
     for(const[k,v]of Object.entries(f.mods)){
@@ -823,20 +805,6 @@ function updateMoltBtn(){
   b.textContent = selForms.length===need ? 'Molt into these ▸' : `Choose ${need-selForms.length} more`;
 }
 
-$('#moltExpand').onclick=()=>{
-  const grid=$('#moltGrid'), btn=$('#moltExpand');
-  const open=grid.classList.toggle('expanded');
-  btn.classList.toggle('open', open);
-  $('#expandLbl').textContent = open ? 'Collapse' : 'Show full details';
-  // sort cards by rarity (best first) when expanded; restore offer order when collapsed
-  const cards=[...grid.children];
-  cards.sort((a,b)=> open
-    ? (+b.dataset.rank - +a.dataset.rank) || (+a.dataset.idx - +b.dataset.idx)
-    : (+a.dataset.idx - +b.dataset.idx));
-  cards.forEach(c=>grid.appendChild(c));
-  sfx.pick();
-};
-
 $('#moltConfirm').onclick=()=>{
   if(selForms.length!==moltNeed()) return;
   const before=pMax();
@@ -859,14 +827,19 @@ $('#moltConfirm').onclick=()=>{
 Object.keys(BEASTS).forEach(k=>BEASTS[k].kind=k);
 Object.keys(ELITES).forEach(k=>ELITES[k].kind=k);
 
-/* ---- 100 procedurally-themed battlegrounds, then a fixed Legendary finale ---- */
-const MOTIFS=['roots','hex','reeds','bones','embers','voideyes','ribs','crystals','fungus','webs'];
+/* ---- 100 distinct battlegrounds, each lasting 10 levels (1000 levels/cycle),
+       then the sequence loops while difficulty keeps rising with your depth ---- */
+const NUM_BG = 100, LEVELS_PER_BG = 10, CYCLE = NUM_BG*LEVELS_PER_BG; // 1000
+const MOTIFS=['roots','hex','reeds','bones','embers','voideyes','ribs','crystals','fungus','webs','ice','sand','tar','moss'];
 const NAME_ADJ=['Rotting','Sunless','Hollow','Weeping','Screaming','Frozen','Ember','Ashen','Whispering','Bleeding',
   'Shattered','Forgotten','Molten','Gilded','Drowned','Cursed','Silent','Writhing','Putrid','Glittering',
-  'Fungal','Obsidian','Withered','Howling','Sunken','Venomous','Starving','Crawling','Buried','Endless'];
+  'Fungal','Obsidian','Withered','Howling','Sunken','Venomous','Starving','Crawling','Buried','Endless',
+  'Gloaming','Fevered','Barbed','Hungering','Wailing','Petrified','Seething','Tarnished','Blistered','Moonlit',
+  'Verdant','Cracked','Smoldering','Sighing','Chittering','Grasping','Fetid','Radiant','Umbral','Thornbound'];
 const NAME_NOUN=['Root','Warren','Mire','Deep','Hollows','Gullet','Nest','Abyss','Burrow','Marsh',
   'Vault','Reach','Hive','Catacomb','Sprawl','Den','Gorge','Tangle','Chasm','Warrens',
-  'Cradle','Maw','Expanse','Roost','Furrow','Threshold','Barrow','Warren','Pit','Cloister'];
+  'Cradle','Maw','Expanse','Roost','Furrow','Threshold','Barrow','Bower','Pit','Cloister',
+  'Fen','Hollow','Grotto','Delve','Rookery','Undercroft','Wound','Terrace','Bastion','Sanctum'];
 function hsl(h,s,l){ // -> hex
   h=((h%360)+360)%360; s/=100; l/=100;
   const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
@@ -874,15 +847,17 @@ function hsl(h,s,l){ // -> hex
   const c=v=>('0'+Math.round(v*255).toString(16)).slice(-2);
   return '#'+c(f(0))+c(f(8))+c(f(4));
 }
+// which of the 100 battlegrounds a level belongs to (cycles every 1000 levels)
+function bgIndex(z){ return Math.floor((z-1)/LEVELS_PER_BG) % NUM_BG; }
 // The Legendary finale: a god's lair out of Ancient Greece — marble, gold, divine sky.
 const GREEK = {
   name:'The Empyrean Throne', motif:'columns', legendary:true,
   pal:['#35529e','#111d46','#0c1330','#f0d98a','#ffe07a'],
 };
-function themeFor(z){
-  if(z>=FINAL_ZONE) return GREEK;
-  const t=z-1;
-  const hue=(t*41+205)%360;
+// a battleground's identity is stable for its 10 levels (keyed by bg index)
+function themeForBg(bg){
+  if(bg===NUM_BG-1) return GREEK;   // the 100th battleground is the Empyrean Throne
+  const hue=(bg*47+205)%360;
   const pal=[
     hsl(hue,42,15),            // sky top
     hsl(hue,50,7),             // sky bottom
@@ -890,13 +865,16 @@ function themeFor(z){
     hsl((hue+28)%360,54,38),   // motif
     hsl((hue+16)%360,72,62),   // bright accent
   ];
-  const name='The '+NAME_ADJ[(z*7)%NAME_ADJ.length]+' '+NAME_NOUN[(z*5+3)%NAME_NOUN.length];
-  return { name, pal, motif:MOTIFS[t%MOTIFS.length] };
+  const name='The '+NAME_ADJ[(bg*13)%NAME_ADJ.length]+' '+NAME_NOUN[(bg*7+3)%NAME_NOUN.length];
+  return { name, pal, motif:MOTIFS[bg%MOTIFS.length] };
 }
+function themeFor(z){ return themeForBg(bgIndex(z)); }
 function zpal(z){ return themeFor(z).pal; }
 
 let _gid=0; const uid=()=>'m'+(_gid++);
-const mix=(a,b,t)=>{ // hex blend
+const mix=(a,b,t)=>{ // hex blend (accepts #rgb or #rrggbb)
+  const exp=h=> h.length===4 ? '#'+h[1]+h[1]+h[2]+h[2]+h[3]+h[3] : h;
+  a=exp(a); b=exp(b);
   const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
   const [r1,g1,b1]=p(a),[r2,g2,b2]=p(b);
   const c=v=>('0'+Math.round(v).toString(16)).slice(-2);
@@ -1079,82 +1057,166 @@ function drawCreature(m, zone, cx, cy, scale, defs){
 // per-zone atmospheric backdrop, driven by the theme's motif
 function sceneSVG(zone, defs){
   const th=themeFor(zone), zp=th.pal, motif=th.motif;
-  const sky=uid(); defs.push(`<linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${zp[0]}"/><stop offset="1" stop-color="${zp[1]}"/></linearGradient>`);
-  let s=`<rect x="0" y="0" width="240" height="180" fill="url(#${sky})"/>`;
-  const mo=zp[3];
+  const top=zp[0], bot=zp[1], floorC=zp[2], mo=zp[3], acc=zp[4];
+  const W=240,H=180, back=mix(mo,bot,.45), lite=mix(mo,'#fff',.35);
+  // --- sky + ambient top-light ---
+  const sky=uid(); defs.push(`<linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset=".55" stop-color="${mix(top,bot,.55)}"/><stop offset="1" stop-color="${bot}"/></linearGradient>`);
+  const gl=uid(); defs.push(`<radialGradient id="${gl}" cx="50%" cy="4%" r="72%"><stop offset="0" stop-color="${mix(acc,'#fff',.3)}" stop-opacity=".2"/><stop offset="1" stop-color="${acc}" stop-opacity="0"/></radialGradient>`);
+  let s=`<rect width="${W}" height="${H}" fill="url(#${sky})"/><rect width="${W}" height="${H}" fill="url(#${gl})"/>`;
+  let fg='';                                  // foreground (drawn after the floor)
+  let floorC2=floorC, floorEmit='';           // floor colour + optional glow strip
+  let pKind='drift', pCol=mix(mo,'#fff',.3);   // ambient particles
+  const R=(i,a,b)=> a + ((i*73+ (i*i*17))%(b-a));  // cheap deterministic jitter
+
   if(motif==='roots'){
-    s+=`<g fill="${mo}" opacity=".5"><path d="M20,0 q6,50 -6,90 q14,-30 22,-90 Z"/><path d="M210,0 q-8,60 6,110 q-18,-40 -24,-110 Z"/><path d="M120,0 q-4,30 4,60 q8,-30 4,-60 Z"/></g>`;
+    s+=`<g fill="${back}" opacity=".55">`; for(let i=0;i<5;i++){ const x=12+i*54; s+=`<path d="M${x},0 q5,42 -3,74 q11,-26 13,-74 Z"/>`; } s+=`</g>`;
+    s+=`<g fill="${mo}">`; for(let i=0;i<4;i++){ const x=30+i*60; s+=`<path d="M${x-7},0 q11,34 2,74 q-2,14 -9,21 q15,-8 17,-25 q6,-40 -3,-70 Z"/><circle cx="${x-2}" cy="${28+i*7}" r="3" fill="${mix(mo,'#000',.25)}"/>`; } s+=`</g>`;
+    s+=`<g stroke="${mix(mo,'#000',.2)}" stroke-width="1.4" fill="none" opacity=".7">`; for(let i=0;i<9;i++){ const x=10+i*26; s+=`<path d="M${x},0 q3,32 -3,${40+ (i%3)*8}"/>`; } s+=`</g>`;
+    pKind='fall';
   } else if(motif==='hex'){
-    s+=`<g fill="none" stroke="${mo}" stroke-width="3" opacity=".35">`;
-    for(let i=0;i<6;i++){ const x=30+i*38, y= i%2?26:150; s+=`<path d="M${x},${y-14} l12,7 l0,14 l-12,7 l-12,-7 l0,-14 Z"/>`; }
-    s+=`</g>`;
+    const hx=(x,y,r,f,st,w,o)=>`<path d="M${x},${y-r} l${r*0.87},${r*0.5} l0,${r} l${-r*0.87},${r*0.5} l${-r*0.87},${-r*0.5} l0,${-r} Z" fill="${f}" stroke="${st}" stroke-width="${w}" opacity="${o}"/>`;
+    s+=`<g>`; for(let r=0;r<3;r++) for(let c=0;c<7;c++){ const x=14+c*34+(r%2?17:0), y=18+r*46; s+=hx(x,y,15,mix(back,bot,.3),lite,1,.5); } s+=`</g>`;
+    // a few glowing cells
+    s+=`<g>`; for(let i=0;i<4;i++){ const x=40+i*46, y=i%2?40:120; s+=hx(x,y,13,mix(acc,bot,.5),acc,1.5,.85)+`<circle cx="${x}" cy="${y}" r="4" fill="${mix(acc,'#fff',.4)}" opacity=".8"><animate attributeName="opacity" values=".3;.9;.3" dur="${3+i}s" repeatCount="indefinite"/></circle>`; } s+=`</g>`;
+    pKind='none';
   } else if(motif==='reeds'){
-    s+=`<g stroke="${mo}" stroke-width="4" opacity=".4" stroke-linecap="round">`;
-    for(let i=0;i<7;i++){ const x=16+i*32; s+=`<line x1="${x}" y1="180" x2="${x+ (i%2?8:-8)}" y2="${70+ (i%3)*20}"/>`; }
-    s+=`</g><ellipse cx="120" cy="150" rx="150" ry="26" fill="${mix(zp[2],'#fff',.08)}" opacity=".35"/>`;
+    // misty water horizon
+    s+=`<rect y="120" width="${W}" height="60" fill="${mix(bot,mo,.25)}" opacity=".5"/>`;
+    s+=`<g stroke="${back}" stroke-width="3" opacity=".5" stroke-linecap="round">`; for(let i=0;i<9;i++){ const x=10+i*28; s+=`<line x1="${x}" y1="150" x2="${x+(i%2?7:-7)}" y2="${80+R(i,0,26)}"/>`; } s+=`</g>`;
+    s+=`<g stroke-linecap="round">`; for(let i=0;i<7;i++){ const x=18+i*32, ty=64+R(i,0,26); s+=`<line x1="${x}" y1="152" x2="${x+(i%2?9:-9)}" y2="${ty}" stroke="${mo}" stroke-width="4"/><ellipse cx="${x+(i%2?9:-9)}" cy="${ty}" rx="4" ry="9" fill="${mix(mo,'#3a2a10',.4)}"/>`; } s+=`</g>`;
+    fg=`<ellipse cx="120" cy="150" rx="150" ry="20" fill="${mix(floorC,'#fff',.12)}" opacity=".3"/>`;
+    pKind='firefly'; pCol=mix(acc,'#fff',.4);
   } else if(motif==='bones'){
-    s+=`<g stroke="${mix(mo,'#fff',.4)}" stroke-width="4" opacity=".4" fill="none">`;
-    for(let i=0;i<5;i++){ const y=40+i*26; s+=`<path d="M30,${y} Q120,${y-18} 210,${y}"/>`; }
-    s+=`</g>`;
+    s+=`<g stroke="${mix(mo,'#fff',.45)}" stroke-width="4" fill="none" opacity=".5">`; for(let i=0;i<6;i++){ const y=26+i*24; s+=`<path d="M24,${y} Q120,${y-20} 216,${y}"/>`; } s+=`</g>`;
+    // a half-buried skull
+    s+=`<g transform="translate(180 140)" opacity=".8"><ellipse cx="0" cy="0" rx="20" ry="18" fill="${mix(mo,'#fff',.5)}"/><ellipse cx="-7" cy="-2" rx="5" ry="6" fill="${bot}"/><ellipse cx="7" cy="-2" rx="5" ry="6" fill="${bot}"/><path d="M-3,6 l3,6 l3,-6 Z" fill="${bot}"/><rect x="-10" y="14" width="20" height="6" fill="${mix(mo,'#fff',.5)}"/><g stroke="${bot}" stroke-width="1"><line x1="-6" y1="14" x2="-6" y2="20"/><line x1="0" y1="14" x2="0" y2="20"/><line x1="6" y1="14" x2="6" y2="20"/></g></g>`;
+    fg=`<g stroke="${mix(mo,'#fff',.4)}" stroke-width="5" stroke-linecap="round" opacity=".7"><line x1="30" y1="168" x2="60" y2="162"/><line x1="90" y1="170" x2="70" y2="160"/></g>`;
+    pKind='drift'; pCol=mix(mo,'#fff',.5);
   } else if(motif==='embers'){
-    s+=`<g stroke="${mo}" stroke-width="3" opacity=".5" fill="none"><path d="M0,150 L60,120 L90,140 L150,110 L210,135 L240,120"/></g>`;
-    s+=`<g fill="${mix(mo,'#fff',.3)}">`;
-    for(let i=0;i<14;i++){ s+=`<circle cx="${(i*53)%240}" cy="${20+(i*37)%140}" r="${1+ (i%3)}" opacity="${.3+ (i%4)*.15}"><animate attributeName="cy" values="${20+(i*37)%140};${(20+(i*37)%140)-14};${20+(i*37)%140}" dur="${3+i%3}s" repeatCount="indefinite"/></circle>`; }
-    s+=`</g>`;
+    s+=`<g fill="${back}"><path d="M0,60 L40,40 L70,58 L110,34 L150,56 L200,36 L240,54 L240,120 L0,120 Z" opacity=".6"/></g>`;
+    // lava floor glow
+    floorC2=mix('#2a0a04',mo,.2);
+    floorEmit=`<path d="M0,150 Q120,138 240,150 L240,180 L0,180 Z" fill="${mix(mo,'#ff6a1a',.5)}" opacity=".5"/><g stroke="${mix('#ffd060',mo,.2)}" stroke-width="2" opacity=".8"><path d="M20,168 L60,160 L100,170 L150,158 L200,168" fill="none"><animate attributeName="opacity" values=".5;1;.5" dur="2.6s" repeatCount="indefinite"/></path></g>`;
+    fg=`<g fill="${mix(bot,'#000',.3)}"><path d="M10,180 L30,150 L52,180 Z"/><path d="M190,180 L214,148 L238,180 Z"/></g>`;
+    pKind='rise'; pCol='#ff9a3c';
   } else if(motif==='voideyes'){
-    s+=`<g fill="${mo}" opacity=".5">`;
-    for(let i=0;i<7;i++){ const x=(i*61+20)%230, y=20+(i*41)%130; s+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="3"><animate attributeName="rx" values="7;0;7" dur="${4+i%3}s" begin="${i*0.5}s" repeatCount="indefinite"/></ellipse>`; }
+    s+=`<g stroke="${back}" stroke-width="2" fill="none" opacity=".4">`; for(let i=0;i<5;i++){ const x=R(i,10,220); s+=`<path d="M${x},0 q${(i%2?12:-12)},60 ${(i%2?-6:6)},120"/>`; } s+=`</g>`;
+    s+=`<g>`; for(let i=0;i<9;i++){ const x=(i*57+18)%230, y=14+(i*39)%120, r=4+ (i%3)*2; s+=`<g><ellipse cx="${x}" cy="${y}" rx="${r*1.7}" ry="${r}" fill="${bot}" stroke="${mix(acc,bot,.3)}" stroke-width="1"/><circle cx="${x}" cy="${y}" r="${r*0.6}" fill="${acc}"><animate attributeName="r" values="${r*0.6};${r*0.1};${r*0.6}" dur="${4+i%3}s" begin="${i*0.4}s" repeatCount="indefinite"/></circle></g>`; } s+=`</g>`;
+    pKind='drift'; pCol=mix(acc,bot,.2);
+  } else if(motif==='ribs'){
+    s+=`<g fill="none" stroke-linecap="round">`;
+    for(let i=0;i<6;i++){ const inset=i*10, o=.7-i*.09; s+=`<path d="M${20+inset},0 Q120,${40+i*8} ${220-inset},0" stroke="${mix(mo,bot,i/7)}" stroke-width="7" opacity="${o}"/><path d="M${20+inset},180 Q120,${140-i*8} ${220-inset},180" stroke="${mix(mo,bot,i/7)}" stroke-width="7" opacity="${o}"/>`; }
     s+=`</g>`;
+    s+=`<g stroke="${mix('#c0304a',mo,.3)}" stroke-width="1.5" fill="none" opacity=".5"><path d="M60,20 q10,60 -10,140"/><path d="M180,20 q-10,60 10,140"/></g>`;
+    pKind='drift'; pCol=mix(mo,'#ff8080',.3);
   } else if(motif==='crystals'){
-    s+=`<g fill="${mo}" opacity=".45" stroke="${mix(mo,'#fff',.4)}" stroke-width="1">`;
-    for(let i=0;i<6;i++){ const x=20+i*40, h=30+(i*29)%60, up=i%2; const y=up?0:180; const dy=up?h:-h;
-      s+=`<path d="M${x},${y} l10,${dy*0.4} l-4,${dy} l-12,0 l-4,${-dy} Z"/>`; }
-    s+=`</g>`;
+    const shard=(x,y,w,h,f,o)=>`<path d="M${x},${y} l${w},${h*0.32} l${-w*0.5},${h} l${-w},0 l${-w*0.5},${-h} Z" fill="${f}" stroke="${mix(f,'#fff',.5)}" stroke-width="1" opacity="${o}"/>`;
+    s+=`<g>`; for(let i=0;i<5;i++){ const x=R(i,20,220), h=-(24+R(i,0,40)); s+=shard(x,4,7,-h,mix(back,acc,.3),.5); } s+=`</g>`;
+    fg=`<g>`; for(let i=0;i<4;i++){ const x=24+i*66, h=26+R(i,0,30); fg+=shard(x,180,10,-h,mix(mo,acc,.4),.9)+shard(x+12,180,6,-h*0.6,mix(mo,acc,.5),.85); } fg+=`</g>`;
+    pKind='spark'; pCol=mix(acc,'#fff',.5);
   } else if(motif==='fungus'){
-    s+=`<g>`;
-    for(let i=0;i<7;i++){ const x=18+i*32, cap=8+(i%3)*4, y=150-(i%4)*8;
-      s+=`<line x1="${x}" y1="180" x2="${x}" y2="${y}" stroke="${mix(mo,'#fff',.3)}" stroke-width="4"/><ellipse cx="${x}" cy="${y}" rx="${cap}" ry="${cap*0.6}" fill="${mo}" opacity=".55"/>`; }
-    s+=`</g>`;
+    // giant back caps
+    s+=`<g fill="${back}" opacity=".6">`; for(let i=0;i<3;i++){ const x=40+i*80, y=70; s+=`<ellipse cx="${x}" cy="${y}" rx="34" ry="16"/><rect x="${x-6}" y="${y}" width="12" height="60" rx="4"/>`; } s+=`</g>`;
+    // mid mushrooms with glowing caps
+    fg=`<g>`; for(let i=0;i<6;i++){ const x=18+i*38, y=150-R(i,0,20), cap=10+ (i%3)*4; const gc=mix(acc,'#fff',.2);
+      fg+=`<rect x="${x-3}" y="${y-14}" width="6" height="30" rx="3" fill="${mix(mo,'#fff',.35)}"/><path d="M${x-cap},${y-10} Q${x},${y-10-cap} ${x+cap},${y-10} Z" fill="${mix(mo,acc,.4)}"/><ellipse cx="${x}" cy="${y-11}" rx="${cap*0.5}" ry="2" fill="${gc}" opacity=".7"><animate attributeName="opacity" values=".4;.9;.4" dur="${3+i%3}s" repeatCount="indefinite"/></ellipse>`; } fg+=`</g>`;
+    pKind='rise'; pCol=mix(acc,'#fff',.4);
   } else if(motif==='webs'){
-    s+=`<g stroke="${mix(mo,'#fff',.35)}" stroke-width="1.4" fill="none" opacity=".4">`;
-    for(const cx of [30,210]){ for(let r=14;r<=64;r+=16) s+=`<path d="M${cx},0 L${cx-r},${r} M${cx},0 L${cx+r},${r}"/>`;
-      for(let r=16;r<=60;r+=16) s+=`<path d="M${cx-r},${r} Q${cx},${r*0.6} ${cx+r},${r}"/>`; }
-    s+=`</g>`;
-  } else if(motif==='columns'){ // GREEK: sunlit marble columns + a golden sun-disc & laurels
-    const gold=zp[3], marble=mix(zp[0],'#fff',.74), cap=mix('#f7e39a',gold,.4), aid=uid(), sid=uid();
-    defs.push(`<radialGradient id="${aid}" cx="50%" cy="14%" r="80%"><stop offset="0" stop-color="#fff6d6" stop-opacity=".5"/><stop offset=".5" stop-color="${gold}" stop-opacity=".28"/><stop offset="1" stop-color="${gold}" stop-opacity="0"/></radialGradient>`);
-    defs.push(`<radialGradient id="${sid}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c0"/><stop offset=".6" stop-color="${gold}"/><stop offset="1" stop-color="${mix(gold,'#a5761a',.5)}"/></radialGradient>`);
-    s+=`<rect x="0" y="0" width="240" height="180" fill="url(#${aid})"/>`;
-    // divine rays fanning from a sun at the top-centre
-    s+=`<g stroke="#ffe9a6" stroke-width="9" opacity=".14">`;
-    for(let i=-4;i<=4;i++) s+=`<line x1="120" y1="26" x2="${120+i*48}" y2="185"/>`;
-    s+=`</g>`;
-    s+=`<circle cx="120" cy="24" r="16" fill="url(#${sid})"><animate attributeName="r" values="15;18;15" dur="3.4s" repeatCount="indefinite"/></circle>`;
-    // laurel sprigs flanking the sun
-    s+=`<g stroke="${mix('#8ab06a',gold,.3)}" stroke-width="2.5" fill="none" opacity=".85">`;
-    for(const dir of [-1,1]){ let l=`<path d="M120,40 q${dir*22},-2 ${dir*34},-14"/>`;
-      for(let k=0;k<4;k++){ const bx=120+dir*(10+k*7), by=38-k*3.5; l+=`<path d="M${bx},${by} q${dir*5},-6 ${dir*11},-4"/>`; }
-      s+=l; }
-    s+=`</g>`;
-    // fluted marble columns
-    s+=`<g>`;
-    for(const cx of [24,216,68,172]){ const w=cx<50||cx>200?19:13;
-      s+=`<rect x="${cx-w}" y="20" width="${w*2}" height="146" fill="${marble}"/>`
-        +`<rect x="${cx-w-5}" y="14" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
-        +`<rect x="${cx-w-5}" y="160" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
-        +`<g stroke="${mix(marble,'#3a3050',.22)}" stroke-width="1.5">`
-        +`<line x1="${cx-w*0.55}" y1="23" x2="${cx-w*0.55}" y2="160"/><line x1="${cx}" y1="23" x2="${cx}" y2="160"/><line x1="${cx+w*0.55}" y1="23" x2="${cx+w*0.55}" y2="160"/></g>`
-        +`<rect x="${cx-w}" y="20" width="${w*0.5}" height="146" fill="#fff" opacity=".18"/>`;
-    }
-    s+=`</g>`;
-  } else { // ribs / flesh (default)
-    s+=`<g stroke="${mo}" stroke-width="6" opacity=".35" fill="none" stroke-linecap="round">`;
-    for(let i=0;i<5;i++){ const x=20+i*50; s+=`<path d="M${x},0 Q${x+16},90 ${x},180"/>`; }
-    s+=`</g>`;
+    s+=`<g stroke="${mix(mo,'#fff',.4)}" stroke-width="1.2" fill="none" opacity=".45">`;
+    for(const cx of [0,240]){ for(let r=20;r<=90;r+=18){ s+=`<path d="M${cx},0 L${cx<120?r:cx-r},${r}"/>`; } for(let r=22;r<=84;r+=16){ const e=cx<120?r:cx-r; s+=`<path d="M${cx},${r*0.5} Q${cx<120?r*0.5:cx-r*0.5},${r*0.3} ${e},${r}"/>`; } }
+    s+=`<path d="M40,0 Q120,26 200,0" /><circle cx="120" cy="20" r="1.6" fill="${mix(mo,'#fff',.6)}"/></g>`;
+    // an egg sac + a wrapped bundle
+    fg=`<g><ellipse cx="205" cy="46" rx="12" ry="15" fill="${mix(mo,'#fff',.25)}" opacity=".8"/><g stroke="${mix(mo,'#fff',.5)}" stroke-width="1" opacity=".6"><line x1="196" y1="40" x2="214" y2="52"/><line x1="214" y1="40" x2="196" y2="52"/></g></g>`;
+    pKind='drift'; pCol=mix(mo,'#fff',.5);
+  } else if(motif==='ice'){
+    s+=`<g fill="${mix(back,'#bfe6ff',.3)}" opacity=".55"><path d="M0,0 L240,0 L240,26 Q120,44 0,26 Z"/></g>`;
+    // icicles
+    s+=`<g fill="${mix('#cfeeff',mo,.3)}" stroke="${mix('#eaffff',mo,.2)}" stroke-width="0.8">`; for(let i=0;i<10;i++){ const x=12+i*24, h=14+R(i,0,30); s+=`<path d="M${x-5},20 L${x+5},20 L${x},${20+h} Z" opacity=".85"/>`; } s+=`</g>`;
+    floorC2=mix(floorC,'#bfe6ff',.25);
+    fg=`<g fill="${mix('#dff4ff',mo,.4)}" opacity=".8"><path d="M20,180 L34,158 L48,180 Z"/><path d="M200,180 L214,162 L226,180 Z"/></g>`;
+    pKind='snow'; pCol='#eaffff';
+  } else if(motif==='sand'){
+    // dunes
+    s+=`<g><path d="M0,150 Q60,120 120,140 Q180,158 240,132 L240,180 L0,180 Z" fill="${mix(mo,bot,.4)}"/><path d="M0,160 Q80,138 160,156 Q200,164 240,150 L240,180 L0,180 Z" fill="${mix(mo,bot,.2)}"/></g>`;
+    s+=`<g stroke="${mix(mo,'#000',.2)}" stroke-width="1" opacity=".4"><path d="M0,168 Q120,158 240,168" fill="none"/></g>`;
+    floorC2=mix(mo,'#d8b878',.3);
+    pKind='sand'; pCol=mix(mo,'#fff',.4);
+  } else if(motif==='tar'){
+    s+=`<g fill="${mix(bot,'#000',.3)}"><path d="M0,0 L240,0 L240,50 Q120,66 0,50 Z"/></g>`;
+    // dripping ceiling
+    s+=`<g fill="${mix(mo,'#000',.2)}">`; for(let i=0;i<6;i++){ const x=20+i*40, h=10+R(i,0,20); s+=`<path d="M${x-4},20 Q${x},${20+h} ${x+4},20 Z"/><circle cx="${x}" cy="${20+h}" r="3"><animate attributeName="cy" values="${20+h};${20+h+8};${20+h}" dur="${2.5+i%3}s" repeatCount="indefinite"/></circle>`; } s+=`</g>`;
+    floorC2=mix('#100810',mo,.15);
+    floorEmit=`<path d="M0,152 Q120,140 240,152 L240,180 L0,180 Z" fill="#0a060c"/><ellipse cx="120" cy="156" rx="120" ry="8" fill="${mix(mo,'#fff',.15)}" opacity=".25"/>`;
+    pKind='bubble'; pCol=mix(mo,'#5a4a6a',.4);
+  } else { // moss (verdant grotto)
+    s+=`<g fill="${mix(back,'#5aa050',.3)}" opacity=".5"><path d="M0,0 L240,0 L240,30 Q120,50 0,30 Z"/></g>`;
+    // hanging vines
+    s+=`<g stroke="${mix(mo,'#6ab04a',.4)}" stroke-width="2.5" fill="none" opacity=".7">`; for(let i=0;i<7;i++){ const x=16+i*32, h=30+R(i,0,40); s+=`<path d="M${x},20 q${(i%2?6:-6)},${h*0.5} ${(i%2?-4:4)},${h}"/>`; for(let k=1;k<4;k++) s+=`<circle cx="${x+(i%2?-4:4)*(k/3)}" cy="${20+h*(k/3)}" r="2.5" fill="${mix(acc,'#7ad060',.3)}"/>`; } s+=`</g>`;
+    floorC2=mix(floorC,'#3a6a2a',.3);
+    fg=`<g fill="${mix(mo,'#6ac04a',.4)}" opacity=".85"><path d="M14,180 q-2,-20 8,-26 q-2,16 6,26 Z"/><path d="M226,180 q2,-20 -8,-26 q2,16 -6,26 Z"/></g>`;
+    pKind='firefly'; pCol=mix(acc,'#cfff8a',.4);
   }
-  // floor
-  const floorCol = motif==='columns' ? mix(zp[0],'#fff',.35) : zp[2];
-  s+=`<ellipse cx="120" cy="176" rx="150" ry="30" fill="${floorCol}" opacity="${motif==='columns'?'.7':'.85'}"/>`;
+
+  if(motif==='columns') return greekScene(zp, defs);
+
+  // --- floor (common) ---
+  s+=`<path d="M0,150 Q120,134 240,150 L240,180 L0,180 Z" fill="${floorC2}"/>`;
+  s+=`<path d="M0,150 Q120,134 240,150" fill="none" stroke="${mix(floorC2,'#fff',.16)}" stroke-width="1.6" opacity=".5"/>`;
+  s+=floorEmit;
+  for(let i=0;i<6;i++){ const x=20+i*38+R(i,0,12), y=160+R(i,0,12); s+=`<ellipse cx="${x}" cy="${y}" rx="${3+i%3}" ry="${1.6+i%2}" fill="${mix(floorC2,'#000',.3)}" opacity=".55"/>`; }
+  s+=fg;
+
+  // --- ambient particles ---
+  s+=particleLayer(pKind, pCol, defs);
+
+  // --- vignette for depth ---
+  const vg=uid(); defs.push(`<radialGradient id="${vg}" cx="50%" cy="44%" r="72%"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".5"/></radialGradient>`);
+  s+=`<rect width="${W}" height="${H}" fill="url(#${vg})"/>`;
+  return s;
+}
+
+// ambient particle systems shared by the scenes
+function particleLayer(kind, col, defs){
+  if(kind==='none') return '';
+  let s=`<g fill="${col}">`;
+  const n = kind==='snow'?16 : kind==='spark'?14 : 12;
+  for(let i=0;i<n;i++){
+    const x=(i*61+17)%240, y=(i*47+9)%176, dur=3+i%4;
+    let r=1+i%3, dy=(i%2?6:-6), op='.5;.15;.5', extra='';
+    if(kind==='rise'){ dy=-18; r=1+i%2; }
+    if(kind==='fall'||kind==='snow'){ dy=18; r=kind==='snow'?(1.4+i%2):1+i%3; }
+    if(kind==='spark'){ r=0.8+i%2; op='.9;.15;.9'; dy=(i%2?3:-3); }
+    if(kind==='firefly'){ r=1.4; op='.2;1;.2'; dy=(i%2?8:-8); }
+    if(kind==='sand'){ dy=22; r=0.8+i%2; op='.4;.1;.4'; }
+    if(kind==='bubble'){ dy=-14; r=1.5+i%3; op='.3;.7;0'; }
+    s+=`<circle cx="${x}" cy="${y}" r="${r}" opacity=".4"><animate attributeName="cy" values="${y};${y+dy};${y}" dur="${dur}s" repeatCount="indefinite"/><animate attributeName="opacity" values="${op}" dur="${dur}s" repeatCount="indefinite"/>${extra}</circle>`;
+  }
+  return s+`</g>`;
+}
+
+// GREEK: a sunlit marble hall — the god's lair
+function greekScene(zp, defs){
+  const gold=zp[3], marble=mix(zp[0],'#fff',.74), cap=mix('#f7e39a',gold,.4);
+  const sky=uid(); defs.push(`<linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${zp[0]}"/><stop offset="1" stop-color="${zp[1]}"/></linearGradient>`);
+  const aid=uid(), sid=uid();
+  defs.push(`<radialGradient id="${aid}" cx="50%" cy="12%" r="82%"><stop offset="0" stop-color="#fff6d6" stop-opacity=".5"/><stop offset=".5" stop-color="${gold}" stop-opacity=".28"/><stop offset="1" stop-color="${gold}" stop-opacity="0"/></radialGradient>`);
+  defs.push(`<radialGradient id="${sid}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c0"/><stop offset=".6" stop-color="${gold}"/><stop offset="1" stop-color="${mix(gold,'#a5761a',.5)}"/></radialGradient>`);
+  let s=`<rect width="240" height="180" fill="url(#${sky})"/><rect width="240" height="180" fill="url(#${aid})"/>`;
+  s+=`<g stroke="#ffe9a6" stroke-width="9" opacity=".14">`; for(let i=-4;i<=4;i++) s+=`<line x1="120" y1="26" x2="${120+i*48}" y2="185"/>`; s+=`</g>`;
+  s+=`<circle cx="120" cy="24" r="16" fill="url(#${sid})"><animate attributeName="r" values="15;18;15" dur="3.4s" repeatCount="indefinite"/></circle>`;
+  s+=`<g stroke="${mix('#8ab06a',gold,.3)}" stroke-width="2.5" fill="none" opacity=".85">`;
+  for(const dir of [-1,1]){ let l=`<path d="M120,40 q${dir*22},-2 ${dir*34},-14"/>`; for(let k=0;k<4;k++){ const bx=120+dir*(10+k*7), by=38-k*3.5; l+=`<path d="M${bx},${by} q${dir*5},-6 ${dir*11},-4"/>`; } s+=l; } s+=`</g>`;
+  s+=`<g>`;
+  for(const cx of [24,216,68,172]){ const w=cx<50||cx>200?19:13;
+    s+=`<rect x="${cx-w}" y="20" width="${w*2}" height="146" fill="${marble}"/>`
+      +`<rect x="${cx-w-5}" y="14" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
+      +`<rect x="${cx-w-5}" y="160" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
+      +`<g stroke="${mix(marble,'#3a3050',.22)}" stroke-width="1.5"><line x1="${cx-w*0.55}" y1="23" x2="${cx-w*0.55}" y2="160"/><line x1="${cx}" y1="23" x2="${cx}" y2="160"/><line x1="${cx+w*0.55}" y1="23" x2="${cx+w*0.55}" y2="160"/></g>`
+      +`<rect x="${cx-w}" y="20" width="${w*0.5}" height="146" fill="#fff" opacity=".18"/>`;
+  }
+  s+=`</g>`;
+  s+=`<path d="M0,150 Q120,138 240,150 L240,180 L0,180 Z" fill="${mix(zp[0],'#fff',.35)}" opacity=".8"/>`;
+  s+=particleLayer('spark', '#fff3c0', defs);
   return s;
 }
 
@@ -1189,18 +1251,16 @@ function heroArtSVG(){
 /* ============================ COMBAT ============================ */
 function startCombat(type){
   let tmpl, isBoss=false;
-  if(type==='B'){ tmpl = G.zone>=FINAL_ZONE ? GOD_BOSS : BOSSES[Math.min(G.zone-1, BOSSES.length-1)]; isBoss=true; }
+  // the god rules the summit of each 1000-level cycle; otherwise bosses cycle by tier
+  if(type==='B'){ tmpl = (G.zone%CYCLE===0) ? GOD_BOSS : BOSSES[(G.zone-1)%BOSSES.length]; isBoss=true; }
   else if(type==='e'){ tmpl=pick(Object.values(ELITES)); isBoss=true; }
   else { tmpl=BEASTS[pick(zonePool(G.zone))]; }
-  // difficulty ramps hard with depth. Power ACCELERATES (quadratic term) so it
-  // keeps pace with the player's compounding build — no more unkillable late game.
-  // Difficulty plateaus around zone ~31 (the curve would otherwise run away over
-  // 100 levels); past that the battlegrounds keep changing but the numbers stay sane.
-  const z=Math.min(G.zone-1, 30);
-  const hpScale = 1 + 0.44*z;
-  // mild acceleration so damage keeps pace with the player's build (the 18% chip
-  // floor does the heavy lifting against pure-tank builds), without one-shotting.
-  const powScale= 1 + 0.34*z + 0.013*z*z;
+  // Difficulty scales LINEARLY and never stops — always relative to your depth, so
+  // enemies keep pace with your compounding build even after the battlegrounds loop.
+  // (The 18% chip-damage floor guarantees you can always die, even as a pure tank.)
+  const z=G.zone-1;
+  const hpScale = 1 + 0.42*z;
+  const powScale= 1 + 0.32*z;
   const eHp=Math.round(tmpl.hp*hpScale*(type==='e'?1.2:1));
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
@@ -1266,8 +1326,8 @@ function renderCombat(){
   $('#enemyName').textContent=e.name;
   $('#enemySub').textContent=e.sub||'';
   // arena layers (re-render only when they change, so animations don't restart)
-  const sceneEl=$('#sceneArt');
-  if(sceneEl && sceneEl.dataset.zone!==String(G.zone)){ sceneEl.innerHTML=sceneArtSVG(G.zone); sceneEl.dataset.zone=String(G.zone); }
+  const sceneEl=$('#sceneArt'); const bg=String(bgIndex(G.zone));
+  if(sceneEl && sceneEl.dataset.bg!==bg){ sceneEl.innerHTML=sceneArtSVG(G.zone); sceneEl.dataset.bg=bg; }
   const monEl=$('#enemyMon');
   if(monEl && monEl.dataset.kind!==e.kind){ monEl.innerHTML=creatureArtSVG(e.mon||MON.grub, G.zone, !!e.boss); monEl.dataset.kind=e.kind; monEl.classList.toggle('boss', !!e.boss); }
   const heroEl=$('#heroMon');
@@ -1606,7 +1666,7 @@ function refreshTitle(){
   $('#continueBtn').style.display = s ? 'block':'none';
   const best=getBest();
   $('#hsVal').textContent = 'Zone '+Math.max(1,best);
-  $('#hsSub').textContent = best ? themeFor(best).name + (best>=FINAL_ZONE?' — the summit!':'') : 'no crawl yet — good luck down there';
+  $('#hsSub').textContent = best ? themeFor(best).name + (best>=CYCLE?' — a god-slayer!':'') : 'no crawl yet — good luck down there';
   updateMute();
 }
 
