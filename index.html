@@ -551,6 +551,7 @@ function setBest(z){ if(z>getBest()) localStorage.setItem(BEST_KEY, String(z)); 
 
 /* ============================ RUN SETUP ============================ */
 function newRun(){
+  busy=false;
   G = {
     screen:'map', zone:1, room:0, rooms:buildRooms(1),
     hp:BASE.maxHp, forms:[], enemy:null, log:[],
@@ -776,6 +777,7 @@ function startCombat(type){
   G.lastgaspUses = 0;     // Revenant / Immortal deaths cheated this fight
   G.eturn = 0;            // enemy turn counter (Chrono Gland)
   G.poison = 0;           // poison stacks on YOU (from toxic enemies)
+  busy=false;             // every fight starts with input unlocked (never inherit a stale lock)
   decideIntent();
   logMsg(`<b>${tmpl.name}</b> — <i>${tmpl.sub||''}</i> — blocks the tunnel!`);
   show('combat');
@@ -885,27 +887,36 @@ $('#actions').addEventListener('click',e=>{
 });
 
 function doAction(act){
+  if(busy || !G || !G.enemy) return;
   busy=true;
   const e=G.enemy;
-  if(act==='strike') playerStrike();
-  else if(act==='guard') playerGuard();
-  else if(act==='dodge') playerDodge();
-  renderCombat();
+  try{
+    if(act==='strike') playerStrike();
+    else if(act==='guard') playerGuard();
+    else if(act==='dodge') playerDodge();
+    renderCombat();
+  }catch(err){ console.error(err); busy=false; return; }
 
-  if(e.hp<=0){ endCombat(true); return; }
+  if(e.hp<=0){ endCombat(true); return; }   // endCombat owns the lock from here
 
   // enemy resolves (unless defending/charging handled inside)
   setTimeout(()=>{
-    enemyTurn(act);
-    endTurnTicks();
-    renderCombat();
-    if(G.hp<=0 && !survive()){ endCombat(false); return; }
-    if(e.hp<=0){ endCombat(true); return; }
-    renderCombat();
-    decideIntent();
-    renderCombat();
-    save();
-    busy=false;
+    try{
+      enemyTurn(act);
+      endTurnTicks();
+      renderCombat();
+      if(G.hp<=0 && !survive()){ endCombat(false); return; }   // endCombat owns the lock
+      if(e.hp<=0){ endCombat(true); return; }
+      renderCombat();
+      decideIntent();
+      renderCombat();
+      save();
+      busy=false;
+    }catch(err){
+      // never let a bug strand the input lock — recover the turn
+      console.error(err); busy=false;
+      try{ renderCombat(); }catch(e2){}
+    }
   }, 420);
 }
 
@@ -1065,6 +1076,7 @@ function endCombat(won){
 
 /* ============================ GAME OVER ============================ */
 function gameOver(){
+  busy=false;
   setBest(G.zone);
   clearSave();
   $('#overTitle').textContent = 'You fell';
@@ -1101,6 +1113,7 @@ let BASE_DEFAULT={...BASE};
 function resetBase(){ Object.assign(BASE, BASE_DEFAULT); }
 
 function resumeRun(){
+  busy=false;
   const s=loadSave(); if(!s) return;
   // treasure bonuses were baked into BASE and NOT saved separately;
   // to keep saves robust we store deltas — recompute from saved base if present
