@@ -15,6 +15,16 @@ phone or laptop and play — no install, no server, no account.
   your home screen) and it plays with zero connection.
 - **Mute in one tap** — considerate of sleeping passengers.
 
+## Two ways to play
+- **⚔️ Campaign** — a path of **300 levels** across **30 chapters**, each chapter
+  its own themed battleground and its own mini-crawl, ending at the god
+  **Zephyrion**. Finish a level with more HP left for more stars (**≥75% → ⭐⭐⭐,
+  ≥50% → ⭐⭐, else ⭐**). Fall and the chapter resets — build wisely. Earn **18★**
+  in a chapter to unlock the next on the level map.
+- **♾️ Endless Crawl** — the original mode: descend forever, each zone deadlier
+  than the last, chasing your deepest run. It's built to eventually out-scale
+  even a maxed build — death is the score.
+
 ## How it plays
 You're a small beast crawling deeper through a burrow, one room at a time.
 
