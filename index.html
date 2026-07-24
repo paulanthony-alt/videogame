@@ -444,7 +444,7 @@ const FORMS = [
   F('uncommon','hide','🐗','Grizzled Hide',{maxHp:8,armor:1},'tough','+3 Armor while below half HP.'),
   F('uncommon','muscle','🦍','Frenzied Muscle',{power:2},'frenzy','+4 Power while below half HP.'),
   F('uncommon','turtle','🐢','Turtle Will',{armor:2},'overguard','Guarding also heals 2 HP.'),
-  F('uncommon','keen','👁️','Keen Eye',{speed:6},'crit','+25% Critical chance. Stacks.'),
+  F('uncommon','keen','👁️','Keen Eye',{speed:6},'crit','+Critical hit chance (caps at 25%). Stacks.'),
   F('uncommon','blur','🌫️','Blur Step',{speed:10},'flit','Faster, stronger Dodge counter.'),
   F('uncommon','quills','🌵','Quill Volley',{armor:1,speed:2},'thorns','Extra Thorns. Stacks.'),
   F('uncommon','carapace','🪨','Iron Carapace',{armor:3,maxHp:6,speed:-8},null,'A heavy, dependable shell.'),
@@ -461,7 +461,7 @@ const FORMS = [
   F('uncommon','rmolt','🐛','Rapid Molt',{maxHp:6,speed:8},'regen','Quick recovery. Stacks.'),
 
   /* ---------------- RARE — build-defining ---------------- */
-  F('rare','talons','🦅','Hooked Talons',{power:2,speed:5},'crit','+25% Critical (double dmg). Stacks.'),
+  F('rare','talons','🦅','Hooked Talons',{power:2,speed:5},'crit','+Critical chance, double dmg (caps at 25%). Stacks.'),
   F('rare','tail','🦂','Whip Tail',{power:1,speed:8},'double','Strikes hit a second time. Stacks.'),
   F('rare','glands','⚡','Adrenal Glands',{speed:12},'riposte','Guarding strikes back for full Power.'),
   F('rare','plating','🔩','Carbon Plates',{armor:1},'plating','Grow 2 shield each turn. Stacks.'),
@@ -629,7 +629,7 @@ function hasP(k){ return G.forms.some(id=>FORM[id].passive===k); }
 function countRaw(k){ return G.forms.reduce((n,id)=>n+(FORM[id].passive===k?1:0),0); }
 // Omnigene (legendary): each copy makes every OTHER passive you own count as +1.
 function countP(k){ let n=countRaw(k); if(k!=='omni' && n>0) n += countRaw('omni'); return n; }
-function critChance(){ return 5 + Math.floor(pSpd()/4) + 25*countP('crit'); }
+function critChance(){ return Math.min(25, 4 + Math.floor(pSpd()/8) + 6*countP('crit')); }
 function critMult(){ return 2 + countP('critmaster'); }
 function dodgeChance(){ return clamp(45 + pSpd(), 45, 92); }
 
