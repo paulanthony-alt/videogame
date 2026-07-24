@@ -83,7 +83,10 @@
   .bar > span{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:11px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000a}
   .enemybox{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; position:relative}
-  .enemyart{font-size:78px; line-height:1; margin:4px 0; display:inline-block; filter:drop-shadow(0 8px 14px rgba(0,0,0,.5))}
+  .enemyart{line-height:0; margin:2px 0; display:block}
+  .enemyart svg{width:230px; max-width:78%; height:auto; display:block; margin:0 auto;
+    border-radius:16px; box-shadow:inset 0 0 40px rgba(0,0,0,.55), 0 8px 18px rgba(0,0,0,.4)}
+  .enemyart svg.boss{max-width:88%; width:270px}
   .enemyart.hit{animation:shake .3s}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px) rotate(-3deg)}75%{transform:translateX(9px) rotate(3deg)}}
   .intent{display:inline-flex; gap:6px; align-items:center; margin-top:8px; padding:7px 14px;
@@ -447,12 +450,12 @@ const ELITES = {
   queen:  {name:'Venom Queen',    sub:'ELITE · her court obeys',  art:'🐝', hp:56, power:10, boss:true, toxic:true},
 };
 const BOSSES = [
-  {name:'The Brood Mother',  sub:'BOSS · she has waited long',   art:'🕷️', hp:64, power:8,  boss:true, toxic:true},
-  {name:'The Hollow King',   sub:'BOSS · crowned in bone',       art:'👑', hp:88, power:9,  boss:true, armored:1, enrage:true},
-  {name:'The Deep Wyrm',     sub:'BOSS · the tunnels are its body',art:'🐉',hp:120,power:11, boss:true, armored:1},
-  {name:'The Rot Sovereign', sub:'BOSS · decay given a throne',  art:'🫧', hp:150, power:12, boss:true, toxic:true, vampiric:true},
-  {name:'The Bone Colossus', sub:'BOSS · a mountain that walks', art:'💀', hp:200, power:13, boss:true, armored:2, enrage:true},
-  {name:'The Devouring Dark',sub:'BOSS · the end of the burrow', art:'🌑', hp:260, power:15, boss:true, enrage:true, vampiric:true},
+  {name:'The Brood Mother',  sub:'BOSS · she has waited long',   kind:'brood',    hp:64, power:8,  boss:true, toxic:true},
+  {name:'The Hollow King',   sub:'BOSS · crowned in bone',       kind:'hollowking',hp:88, power:9,  boss:true, armored:1, enrage:true},
+  {name:'The Deep Wyrm',     sub:'BOSS · the tunnels are its body',kind:'wyrm',   hp:120,power:11, boss:true, armored:1},
+  {name:'The Rot Sovereign', sub:'BOSS · decay given a throne',  kind:'sovereign',hp:150, power:12, boss:true, toxic:true, vampiric:true},
+  {name:'The Bone Colossus', sub:'BOSS · a mountain that walks', kind:'colossus', hp:200, power:13, boss:true, armored:2, enrage:true},
+  {name:'The Devouring Dark',sub:'BOSS · the end of the burrow', kind:'darkend',  hp:260, power:15, boss:true, enrage:true, vampiric:true},
 ];
 const ZONE_NAMES = ['The Rotting Root','The Chitin Warrens','The Sunless Mire','The Bonefall Deep','The Ember Hollows','The Screaming Dark','The Wyrm’s Gullet'];
 const ZONE_TINT  = ['#241a2e','#1a2a24','#1a2230','#26242e','#2e1f1a','#241826','#2a1a1a'];
@@ -753,6 +756,241 @@ $('#moltConfirm').onclick=()=>{
   else nextRoom();
 };
 
+/* ============================ CREATURE ART ============================ */
+// Everything here is drawn as inline SVG — no external images (CSP-safe), fully
+// offline. Monsters are parametric so each reads as its own beast, and the zone
+// palette tints them + paints an atmospheric backdrop "of the area you're in".
+Object.keys(BEASTS).forEach(k=>BEASTS[k].kind=k);
+Object.keys(ELITES).forEach(k=>ELITES[k].kind=k);
+
+// Per-zone scene palettes: [skyTop, skyBottom, floor, motif, tint]
+const ZPAL = [
+  ['#2a1f16','#160f0a','#0f0a07','#6a4a2a','#caa24a'], // 1 Rotting Root
+  ['#2a2410','#161206','#100d05','#7a5a1a','#e0b040'], // 2 Chitin Warrens
+  ['#12241f','#081310','#050d0a','#1f5a4a','#40c0a0'], // 3 Sunless Mire
+  ['#1e1c26','#0f0e15','#08070c','#4a4658','#b8b0d0'], // 4 Bonefall Deep
+  ['#2c1710','#170a06','#100603','#8a3a1a','#ff8040'], // 5 Ember Hollows
+  ['#1c1230','#0e0820','#070414','#3a2060','#a060f0'], // 6 Screaming Dark
+  ['#2a1018','#160709','#0f0405','#7a1f2a','#ff5060'], // 7 Wyrm's Gullet
+];
+function zpal(z){ return ZPAL[(z-1)%ZPAL.length]; }
+
+let _gid=0; const uid=()=>'m'+(_gid++);
+const mix=(a,b,t)=>{ // hex blend
+  const p=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
+  const [r1,g1,b1]=p(a),[r2,g2,b2]=p(b);
+  const c=v=>('0'+Math.round(v).toString(16)).slice(-2);
+  return '#'+c(r1+(r2-r1)*t)+c(g1+(g2-g1)*t)+c(b1+(b2-b1)*t);
+};
+
+// Monster specs keyed by enemy "kind". Fields drive the parametric renderer.
+const MON = {
+  // --- beasts ---
+  grub:   {shape:'worm',  pal:['#d8c49a','#9c8460'], segs:4, eyes:2, legs:4, fang:1},
+  tick:   {shape:'round', pal:['#c9566c','#7d2b3d'], eyes:2, legs:6, sz:.82},
+  beetle: {shape:'dome',  pal:['#5a9a5a','#2f5236'], eyes:2, legs:6, fang:2, shell:true},
+  mite:   {shape:'round', pal:['#b7a07a','#7d6a4e'], eyes:4, legs:8, sz:.78},
+  wasp:   {shape:'oval',  pal:['#e0b040','#3a2c12'], eyes:2, wings:'bug', tail:'sting', stripes:true, sz:.9},
+  toad:   {shape:'squat', pal:['#6a8a4a','#3a5230'], eyes:2, bigEye:true, legs:4},
+  bat:    {shape:'small', pal:['#7a6a8a','#3a2f4a'], eyes:2, wings:'bat', ears:true, fang:2},
+  louse:  {shape:'worm',  pal:['#8a7a5a','#4a3f2e'], segs:5, eyes:2, legs:8},
+  serpent:{shape:'serpent',pal:['#9a9a6a','#4a4a30'], eyes:2, fang:2},
+  mantis: {shape:'oval',  pal:['#6aba5a','#316a30'], eyes:2, arms:'blade', wings:'bug'},
+  crab:   {shape:'wide',  pal:['#a06a52','#5a3a2a'], eyes:2, claws:true, legs:6, shell:true},
+  leech:  {shape:'worm',  pal:['#a85a6c','#6a2b3d'], segs:5, eyes:2, soft:true},
+  widow:  {shape:'round', pal:['#6a4a68','#2f1f30'], eyes:6, legs:8, mark:'glass'},
+  newt:   {shape:'newt',  pal:['#5a8a7a','#345248'], eyes:2, legs:4, tail:true},
+  scorp:  {shape:'wide',  pal:['#b0983a','#6a5a24'], eyes:2, claws:true, legs:6, tail:'sting'},
+  golem:  {shape:'mass',  pal:['#8a7a5a','#4a3f2e'], eyes:3, chunky:true},
+  wraith: {shape:'ghost', pal:['#9aacc4','#3a4a5e'], eyes:2, glow:true},
+  drake:  {shape:'newt',  pal:['#a05a48','#5a2f28'], eyes:2, legs:4, tail:true, wings:'bat', horns:true},
+  // --- elites ---
+  spider: {shape:'round', pal:['#7a2f52','#2f1020'], eyes:8, legs:8, mark:'glass', sz:1.05},
+  slug:   {shape:'worm',  pal:['#8a9a5a','#4a5a2f'], segs:6, eyes:2, soft:true, sz:1.08},
+  reaver: {shape:'wide',  pal:['#c0a83a','#6a5a1a'], eyes:2, claws:true, legs:6, tail:'sting', sz:1.05},
+  gravemaw:{shape:'mass', pal:['#7a4a5a','#3a1f2a'], eyes:3, maw:true, chunky:true, sz:1.08},
+  horror: {shape:'worm',  pal:['#8a6a4a','#4a3020'], segs:6, eyes:6, legs:10, sz:1.05},
+  queen:  {shape:'oval',  pal:['#e0c040','#5a3a12'], eyes:4, wings:'bug', tail:'sting', stripes:true, crown:true, sz:1.05},
+  // --- bosses (big, elaborate, animated) ---
+  brood:    {shape:'round', pal:['#8a2f5a','#2a0a1a'], eyes:8, legs:8, mark:'glass', boss:true, crown:false},
+  hollowking:{shape:'mass', pal:['#d8d0b0','#6a6250'], eyes:2, crown:true, bony:true, boss:true},
+  wyrm:     {shape:'serpent',pal:['#3a7a5a','#12332a'], eyes:2, fang:2, horns:true, boss:true, big:true},
+  sovereign:{shape:'mass',  pal:['#8aaa5a','#3a5a2a'], eyes:3, bubbles:true, soft:true, maw:true, boss:true},
+  colossus: {shape:'mass',  pal:['#e0d8be','#7a7058'], eyes:2, horns:true, bony:true, chunky:true, boss:true},
+  darkend:  {shape:'ghost', pal:['#6a3aa0','#160a2a'], eyes:6, glow:true, aura:true, boss:true, big:true},
+};
+function monFor(tmpl){ return MON[tmpl.kind] || MON.grub; }
+
+function drawEye(cx,cy,r,glow,boss){
+  const g=boss?`<circle cx="${cx}" cy="${cy}" r="${r*2.2}" fill="${glow}" opacity=".35"><animate attributeName="opacity" values=".2;.55;.2" dur="1.8s" repeatCount="indefinite"/></circle>`:'';
+  return `${g}<circle cx="${cx}" cy="${cy}" r="${r}" fill="#0a0608"/><circle cx="${cx}" cy="${cy}" r="${r*0.62}" fill="${glow}"/><circle cx="${cx-r*0.25}" cy="${cy-r*0.28}" r="${r*0.22}" fill="#fff" opacity=".9"/>`;
+}
+function eyeCluster(n,cx,cy,spread,r,glow,boss){
+  let s='';
+  if(n===1){ return drawEye(cx,cy,r,glow,boss); }
+  if(n===2){ return drawEye(cx-spread,cy,r,glow,boss)+drawEye(cx+spread,cy,r,glow,boss); }
+  // clustered many-eyes (spiders/horrors)
+  const pts = n<=4
+    ? [[-spread,-2],[spread,-2],[-spread*0.5,r*1.4],[spread*0.5,r*1.4]]
+    : [[-spread,-3],[spread,-3],[-spread*1.5,r*1.3],[spread*1.5,r*1.3],[-spread*0.6,r*2.2],[spread*0.6,r*2.2],[-spread*0.2,-r*1.8],[spread*0.2,-r*1.8]];
+  for(let i=0;i<Math.min(n,pts.length);i++) s+=drawEye(cx+pts[i][0],cy+pts[i][1],r*(i<2?1:0.78),glow,boss);
+  return s;
+}
+
+// draws the creature centred at (cx,cy); pushes gradient defs into `defs`
+function drawCreature(m, zone, cx, cy, scale, defs){
+  const zp=zpal(zone);
+  const c1=mix(m.pal[0], zp[4], 0.14), c2=mix(m.pal[1], zp[1], 0.2);
+  const dark=mix(c2,'#000',0.35), rim=mix(c1,'#fff',0.25);
+  const bid=uid(), gid=uid();
+  defs.push(`<radialGradient id="${bid}" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${rim}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></radialGradient>`);
+  const glow = mix(m.glow?rim:'#ff5a3c', m.pal[0], 0.15);
+  const eyeGlow = m.shape==='ghost'? '#bfe0ff' : (m.boss? '#ff5030' : '#ffd24a');
+  let s=`<g transform="translate(${cx} ${cy}) scale(${scale})">`;
+  const st=`stroke="${dark}" stroke-width="2.2"`;
+
+  // wings (behind)
+  if(m.wings==='bat'){ const wid=uid(); defs.push(`<linearGradient id="${wid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${mix(c2,'#000',.1)}"/><stop offset="1" stop-color="${dark}"/></linearGradient>`);
+    s+=`<g opacity=".95"><path d="M-8,-14 C-46,-46 -78,-30 -64,-6 C-52,-16 -44,-10 -34,-6 C-46,2 -40,12 -30,10 C-30,-2 -18,-4 -8,-6 Z" fill="url(#${wid})" ${st}><animateTransform attributeName="transform" type="rotate" values="-6 -8 -14;4 -8 -14;-6 -8 -14" dur="2.2s" repeatCount="indefinite"/></path>
+      <path d="M8,-14 C46,-46 78,-30 64,-6 C52,-16 44,-10 34,-6 C46,2 40,12 30,10 C30,-2 18,-4 8,-6 Z" fill="url(#${wid})" ${st}><animateTransform attributeName="transform" type="rotate" values="6 8 -14;-4 8 -14;6 8 -14" dur="2.2s" repeatCount="indefinite"/></path></g>`;
+  } else if(m.wings==='bug'){
+    s+=`<g opacity=".5"><ellipse cx="-24" cy="-18" rx="26" ry="12" fill="#bfe6ff" ${st} transform="rotate(-24 -24 -18)"><animateTransform attributeName="transform" type="rotate" values="-30 -24 -18;-18 -24 -18;-30 -24 -18" dur=".5s" repeatCount="indefinite"/></ellipse>
+      <ellipse cx="24" cy="-18" rx="26" ry="12" fill="#bfe6ff" ${st} transform="rotate(24 24 -18)"><animateTransform attributeName="transform" type="rotate" values="30 24 -18;18 24 -18;30 24 -18" dur=".5s" repeatCount="indefinite"/></ellipse></g>`;
+  }
+
+  // legs — two-segment, splayed out beyond the body, in a mid tone so they read on dark
+  const legN=m.legs||0;
+  if(legN){ let lg=''; const legCol=mix(c1,'#000',0.32);
+    const rows=Math.ceil(legN/2);
+    for(let i=0;i<legN;i++){ const side=i%2?1:-1; const row=Math.floor(i/2);
+      const by = 3 + row*6 - (rows-1)*3;
+      const bx = side*13, midx=side*26, midy=by-7, endx=side*35, endy=by+9;
+      lg+=`<path d="M${bx},${by} L${midx},${midy} L${endx},${endy}" fill="none" stroke="${legCol}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>`; }
+    s+=`<g>${lg}</g>`;
+  }
+  // claws (crab/scorpion) — arm out to the side, pincer opening outward
+  if(m.claws){ const cc=mix(c1,'#fff',0.05);
+    s+=`<g stroke="${dark}" stroke-width="2.6" stroke-linejoin="round">
+      <path d="M-18,3 L-36,-1" fill="none" stroke-width="4" stroke-linecap="round"/>
+      <path d="M-36,-1 l-13,-9 l5,9 l-9,3 l9,4 l-4,8 Z" fill="${cc}"/>
+      <path d="M18,3 L36,-1" fill="none" stroke-width="4" stroke-linecap="round"/>
+      <path d="M36,-1 l13,-9 l-5,9 l9,3 l-9,4 l4,8 Z" fill="${cc}"/></g>`; }
+  // mantis blade arms
+  if(m.arms==='blade'){ s+=`<g stroke="${dark}" stroke-width="2.5" fill="${mix(c1,'#fff',.1)}">
+      <path d="M-14,-6 l-14,-4 l-2,-16 l6,-2 l4,14 l12,4 Z"/><path d="M14,-6 l14,-4 l2,-16 l-6,-2 l-4,14 l-12,4 Z"/></g>`; }
+
+  // tail / stinger
+  if(m.tail==='sting'){ s+=`<path d="M0,18 q22,10 30,-6 q10,-16 -2,-22" fill="none" stroke="${dark}" stroke-width="4" stroke-linecap="round"/><path d="M28,-12 l10,-6 l-2,12 Z" fill="${glow}" ${st}/>`; }
+  else if(m.tail===true){ s+=`<path d="M0,14 Q34,20 44,-2 Q50,-14 40,-20" fill="none" stroke="${c2}" stroke-width="9" stroke-linecap="round"/>`; }
+
+  // horns
+  if(m.horns){ s+=`<path d="M-14,-24 q-10,-14 -22,-16 q10,10 10,22 Z" fill="${mix(c1,'#fff',.15)}" ${st}/><path d="M14,-24 q10,-14 22,-16 q-10,10 -10,22 Z" fill="${mix(c1,'#fff',.15)}" ${st}/>`; }
+  if(m.ears){ s+=`<path d="M-10,-22 l-6,-16 l12,8 Z" fill="${c1}" ${st}/><path d="M10,-22 l6,-16 l-12,8 Z" fill="${c1}" ${st}/>`; }
+
+  // aura (boss)
+  if(m.aura){ const aid=uid(); defs.push(`<radialGradient id="${aid}"><stop offset=".5" stop-color="${glow}" stop-opacity="0"/><stop offset="1" stop-color="${glow}" stop-opacity=".5"/></radialGradient>`);
+    s+=`<circle r="46" fill="url(#${aid})"><animate attributeName="r" values="42;50;42" dur="2.4s" repeatCount="indefinite"/></circle>`; }
+
+  // ---- body ----
+  const eyeY=-6, eyeSpread=9, eyeR=4;
+  if(m.shape==='worm'){ const segs=m.segs||4; let body='';
+    for(let i=segs-1;i>=0;i--){ const t=i/(segs-1); const bx=-22+ (44*(1-t)); const rr=13-i*1.1; // head at right
+      body+=`<ellipse cx="${bx}" cy="${Math.sin(i*1.1)*2}" rx="${rr}" ry="${rr*0.92}" fill="url(#${bid})" ${st}/>`; }
+    s+=body; s+=eyeCluster(m.eyes,20,eyeY,6,eyeR,eyeGlow,m.boss);
+    if(m.fang) s+=`<path d="M28,2 l6,7 l-6,-1 Z" fill="${dark}"/>`;
+  } else if(m.shape==='serpent'){
+    s+=`<path d="M-40,20 C-60,-6 -20,-8 -6,-22 C2,-32 22,-30 30,-16" fill="none" stroke="url(#${bid})" stroke-width="20" stroke-linecap="round"/>
+        <path d="M-40,20 C-60,-6 -20,-8 -6,-22 C2,-32 22,-30 30,-16" fill="none" stroke="${dark}" stroke-width="20" stroke-linecap="round" opacity=".18"/>
+        <ellipse cx="30" cy="-16" rx="18" ry="14" fill="url(#${bid})" ${st}/>`;
+    s+=eyeCluster(2,30,-20,7,eyeR,eyeGlow,m.boss);
+    if(m.fang) s+=`<path d="M40,-8 l3,9 l-5,-3 Z" fill="#fff"/><path d="M46,-10 l2,8 l-5,-2 Z" fill="#fff"/>`;
+  } else if(m.shape==='ghost'){
+    s+=`<path d="M0,-30 C24,-30 30,-8 30,10 C30,22 22,20 16,28 C10,20 4,28 0,22 C-4,28 -10,20 -16,28 C-22,20 -30,22 -30,10 C-30,-8 -24,-30 0,-30 Z" fill="url(#${bid})" ${st} opacity=".92">
+        <animateTransform attributeName="transform" type="translate" values="0 0;0 -4;0 0" dur="3s" repeatCount="indefinite"/></path>`;
+    s+=eyeCluster(m.eyes,0,-8,10,eyeR+1,eyeGlow,m.boss);
+  } else if(m.shape==='mass'){
+    s+=`<path d="M-30,26 C-40,-2 -26,-30 0,-30 C26,-30 40,-2 30,26 Z" fill="url(#${bid})" ${st}/>`;
+    if(m.bony){ s+=`<g stroke="${mix(c1,'#fff',.3)}" stroke-width="3" opacity=".6"><path d="M-18,-6 h36 M-20,4 h40 M-16,14 h32"/></g>`; }
+    if(m.chunky){ s+=`<g fill="${mix(c1,'#fff',.12)}" ${st}><path d="M-26,-8 l-10,-8 l2,12 Z"/><path d="M26,-8 l10,-8 l-2,12 Z"/></g>`; }
+    if(m.bubbles){ s+=`<g fill="${mix(c1,'#fff',.2)}" opacity=".7"><circle cx="-14" cy="-14" r="6"/><circle cx="10" cy="-18" r="8"/><circle cx="20" cy="-4" r="5"/></g>`; }
+    s+=eyeCluster(m.eyes,0,-6,10,eyeR+1,eyeGlow,m.boss);
+    if(m.maw) s+=`<path d="M-16,14 Q0,30 16,14 Q0,20 -16,14 Z" fill="#160608"/><g fill="#fff"><path d="M-12,15 l3,7 l3,-6 Z"/><path d="M0,17 l3,7 l3,-7 Z"/><path d="M10,15 l3,6 l2,-6 Z"/></g>`;
+  } else if(m.shape==='newt'){
+    s+=`<ellipse cx="0" cy="2" rx="26" ry="15" fill="url(#${bid})" ${st}/><ellipse cx="22" cy="-4" rx="12" ry="10" fill="url(#${bid})" ${st}/>`;
+    s+=eyeCluster(2,26,-8,6,eyeR,eyeGlow,m.boss);
+  } else { // round / dome / oval / squat / wide / small
+    let rx=20, ry=18;
+    if(m.shape==='oval'){ rx=16; ry=22; }
+    if(m.shape==='wide'){ rx=26; ry=15; }
+    if(m.shape==='squat'){ rx=24; ry=17; }
+    if(m.shape==='dome'){ rx=22; ry=18; }
+    if(m.shape==='small'){ rx=15; ry=14; }
+    s+=`<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="url(#${bid})" ${st}/>`;
+    if(m.shell){ s+=`<path d="M0,-${ry} C ${rx},-${ry} ${rx},${ry*0.2} 0,${ry*0.2} C -${rx},${ry*0.2} -${rx},-${ry} 0,-${ry} Z" fill="${mix(c1,'#000',.12)}" opacity=".5"/><line x1="0" y1="-${ry}" x2="0" y2="${ry*0.2}" stroke="${dark}" stroke-width="2"/>`; }
+    if(m.stripes){ s+=`<g stroke="${dark}" stroke-width="4" opacity=".8"><line x1="-14" y1="6" x2="14" y2="6"/><line x1="-13" y1="14" x2="13" y2="14"/></g>`; }
+    if(m.mark==='glass'){ s+=`<path d="M-5,-2 l10,0 l-5,7 l5,7 l-10,0 l5,-7 Z" fill="#e04a4a"/>`; }
+    const er = m.bigEye? eyeR+2 : eyeR;
+    const ey = m.shape==='oval'? -10 : -5;
+    s+=eyeCluster(m.eyes, 0, ey, m.eyes>2?8:eyeSpread, er, eyeGlow, m.boss);
+    if(m.fang) s+=`<path d="M-6,${ry-4} l3,7 l3,-6 Z" fill="#fff"/><path d="M4,${ry-5} l3,7 l2,-6 Z" fill="#fff"/>`;
+  }
+
+  // crown (kings/queens)
+  if(m.crown){ s+=`<g fill="${mix('#f5c752',c1,.1)}" stroke="${mix('#a5852a','#000',.2)}" stroke-width="1.5"><path d="M-20,-24 l0,-14 l7,7 l6,-12 l6,12 l7,-7 l0,14 Z"/><circle cx="0" cy="-40" r="3" fill="#ff5a6a"/></g>`; }
+
+  s+=`</g>`;
+  return s;
+}
+
+// per-zone atmospheric backdrop
+function sceneSVG(zone, defs){
+  const zp=zpal(zone), zi=(zone-1)%ZPAL.length;
+  const sky=uid(); defs.push(`<linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${zp[0]}"/><stop offset="1" stop-color="${zp[1]}"/></linearGradient>`);
+  let s=`<rect x="0" y="0" width="240" height="180" fill="url(#${sky})"/>`;
+  const mo=zp[3];
+  // motif silhouettes per zone
+  if(zi===0){ // roots
+    s+=`<g fill="${mo}" opacity=".5"><path d="M20,0 q6,50 -6,90 q14,-30 22,-90 Z"/><path d="M210,0 q-8,60 6,110 q-18,-40 -24,-110 Z"/><path d="M120,0 q-4,30 4,60 q8,-30 4,-60 Z"/></g>`;
+  } else if(zi===1){ // chitin hexes
+    s+=`<g fill="none" stroke="${mo}" stroke-width="3" opacity=".35">`;
+    for(let i=0;i<6;i++){ const x=30+i*38, y= i%2?26:150; s+=`<path d="M${x},${y-14} l12,7 l0,14 l-12,7 l-12,-7 l0,-14 Z"/>`; }
+    s+=`</g>`;
+  } else if(zi===2){ // reeds + mist
+    s+=`<g stroke="${mo}" stroke-width="4" opacity=".4" stroke-linecap="round">`;
+    for(let i=0;i<7;i++){ const x=16+i*32; s+=`<line x1="${x}" y1="180" x2="${x+ (i%2?8:-8)}" y2="${70+ (i%3)*20}"/>`; }
+    s+=`</g><ellipse cx="120" cy="150" rx="150" ry="26" fill="${mix(zp[2],'#fff',.08)}" opacity=".35"/>`;
+  } else if(zi===3){ // bones / ribs
+    s+=`<g stroke="${mix(mo,'#fff',.4)}" stroke-width="4" opacity=".4" fill="none">`;
+    for(let i=0;i<5;i++){ const y=40+i*26; s+=`<path d="M30,${y} Q120,${y-18} 210,${y}"/>`; }
+    s+=`</g>`;
+  } else if(zi===4){ // embers + cracks
+    s+=`<g stroke="${mo}" stroke-width="3" opacity=".5" fill="none"><path d="M0,150 L60,120 L90,140 L150,110 L210,135 L240,120"/></g>`;
+    s+=`<g fill="${mix(mo,'#fff',.3)}">`;
+    for(let i=0;i<14;i++){ s+=`<circle cx="${(i*53)%240}" cy="${20+(i*37)%140}" r="${1+ (i%3)}" opacity="${.3+ (i%4)*.15}"><animate attributeName="cy" values="${20+(i*37)%140};${(20+(i*37)%140)-14};${20+(i*37)%140}" dur="${3+i%3}s" repeatCount="indefinite"/></circle>`; }
+    s+=`</g>`;
+  } else if(zi===5){ // void eyes
+    s+=`<g fill="${mo}" opacity=".5">`;
+    for(let i=0;i<7;i++){ const x=(i*61+20)%230, y=20+(i*41)%130; s+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="3"><animate attributeName="rx" values="7;0;7" dur="${4+i%3}s" begin="${i*0.5}s" repeatCount="indefinite"/></ellipse>`; }
+    s+=`</g>`;
+  } else { // gullet ribs / flesh
+    s+=`<g stroke="${mo}" stroke-width="6" opacity=".35" fill="none" stroke-linecap="round">`;
+    for(let i=0;i<5;i++){ const x=20+i*50; s+=`<path d="M${x},0 Q${x+16},90 ${x},180"/>`; }
+    s+=`</g>`;
+  }
+  // floor
+  s+=`<ellipse cx="120" cy="176" rx="150" ry="30" fill="${zp[2]}" opacity=".85"/>`;
+  return s;
+}
+
+function enemyArtSVG(e, zone){
+  const m=e.mon||MON.grub; const isBoss=!!m.boss;
+  const defs=[]; const scale=(isBoss? 1.55 : 1.12)*(m.sz||1);
+  const scene=sceneSVG(zone, defs);
+  const shadow=`<ellipse cx="120" cy="150" rx="${isBoss?66:48}" ry="${isBoss?15:12}" fill="#000" opacity=".38"/>`;
+  const body=drawCreature(m, zone, 120, isBoss?96:100, scale, defs);
+  return `<svg class="monsvg${isBoss?' boss':''}" viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><defs>${defs.join('')}</defs>${scene}${shadow}${body}</svg>`;
+}
+
 /* ============================ COMBAT ============================ */
 function startCombat(type){
   let tmpl, isBoss=false;
@@ -765,7 +1003,7 @@ function startCombat(type){
   const eHp=Math.round(tmpl.hp*hpScale*(type==='e'?1.2:1));
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
-    name:tmpl.name, sub:tmpl.sub||'', art:tmpl.art, hp:eHp, maxHp:eHp, power:ePow,
+    name:tmpl.name, sub:tmpl.sub||'', kind:tmpl.kind, mon:monFor(tmpl), hp:eHp, maxHp:eHp, power:ePow,
     armor:tmpl.armored||0, boss:!!tmpl.boss||isBoss, dodgey:!!tmpl.dodgey,
     toxic:!!tmpl.toxic, vampiric:!!tmpl.vampiric, enrage:!!tmpl.enrage,
     bleed:0, venom:0, intent:null, charging:false,
@@ -825,7 +1063,8 @@ function renderCombat(){
   $('#cRoomChip').textContent=(e.boss?'⚠ Boss':'Room '+(G.room+1));
   $('#enemyName').textContent=e.name;
   $('#enemySub').textContent=e.sub||'';
-  $('#enemyArt').textContent=e.art;
+  const artEl=$('#enemyArt');
+  if(artEl.dataset.kind!==e.kind){ artEl.innerHTML=enemyArtSVG(e, G.zone); artEl.dataset.kind=e.kind; }
   const ep=clamp(e.hp/e.maxHp*100,0,100);
   $('#enemyHpBar').style.width=ep+'%';
   $('#enemyHpTxt').textContent=Math.max(0,e.hp)+' / '+e.maxHp;
