@@ -45,9 +45,16 @@
     background:linear-gradient(180deg,#fff,var(--pick2) 60%,var(--pick));
     -webkit-background-clip:text; background-clip:text; color:transparent;
     filter:drop-shadow(0 6px 18px rgba(124,108,240,.5)); line-height:1}
-  .tagline{color:var(--dim); margin:2px 0 18px; text-align:center; max-width:300px; line-height:1.4}
+  .tagline{color:var(--dim); margin:2px 0 16px; text-align:center; max-width:300px; line-height:1.4}
   .crest{font-size:66px; margin-bottom:4px; animation:bob 3s ease-in-out infinite}
   @keyframes bob{50%{transform:translateY(-8px)}}
+  .hiscore{display:flex; align-items:center; gap:14px; width:100%; max-width:340px; margin-bottom:16px;
+    background:linear-gradient(120deg, rgba(245,199,82,.16), rgba(124,108,240,.10)); border:1px solid rgba(245,199,82,.4);
+    border-radius:16px; padding:12px 16px; box-shadow:0 0 24px -8px rgba(245,199,82,.5)}
+  .hiscore .trophy{font-size:36px; filter:drop-shadow(0 3px 6px rgba(0,0,0,.4))}
+  .hiscore .hs-lbl{font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--gold)}
+  .hiscore .hs-val{font-size:26px; font-weight:900; line-height:1.05; color:#fff}
+  .hiscore .hs-sub{font-size:12px; color:var(--dim); margin-top:1px}
 
   .btn{
     appearance:none; border:none; cursor:pointer; font-family:inherit; font-weight:800;
@@ -106,7 +113,7 @@
   @media (prefers-reduced-motion:reduce){ #heroMon.lunge,#enemyMon.elunge,#enemyMon.hit,#heroMon.hurt{animation:none} }
   .intent{display:inline-flex; gap:6px; align-items:center; margin-top:8px; padding:7px 14px;
     border-radius:999px; font-weight:800; font-size:14px; border:1px solid var(--line); background:var(--panel2)}
-  .intent.big{color:var(--danger); border-color:var(--danger); box-shadow:0 0 14px rgba(255,107,107,.35)}
+  .intent.warn{color:var(--danger); border-color:var(--danger); box-shadow:0 0 14px rgba(255,107,107,.35)}
   .intent.calm{color:var(--xp)}
   .dots{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:8px; min-height:20px}
   .dot{font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:var(--panel2); border:1px solid var(--line)}
@@ -121,8 +128,15 @@
   .stat{flex:1; text-align:center; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:6px 2px}
   .stat b{display:block; font-size:16px}
   .stat span{font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em}
-  .formmini{display:flex; gap:5px; flex-wrap:wrap; margin-top:9px}
+  .formwrap{margin-top:9px}
+  .formmini{display:flex; gap:5px; flex-wrap:wrap}
+  .formmini.clip{max-height:60px; overflow:hidden}   /* ~2 rows, then the arrow reveals the rest */
   .formmini .f{font-size:15px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:3px 7px}
+  .formtoggle{display:flex; align-items:center; justify-content:center; gap:6px; width:100%; margin-top:7px;
+    background:transparent; border:1px dashed var(--line); color:var(--dim); border-radius:9px;
+    padding:5px; font-family:inherit; font-weight:800; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; cursor:pointer}
+  .formtoggle .arw{display:inline-block; transition:transform .2s}
+  .formtoggle.open .arw{transform:rotate(180deg)}
 
   .actions{display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-top:12px}
   .act{padding:15px 6px; border-radius:14px; border:1px solid var(--line); background:var(--panel2);
@@ -200,6 +214,14 @@
     <div class="crest">🦋</div>
     <div class="logo">MOLT</div>
     <div class="tagline">A pocket roguelike for the road. Crawl, fight, and <b>molt</b> into something new. Short runs. Saves anywhere. No twitchy aiming.</div>
+    <div class="hiscore" id="hiscore">
+      <div class="trophy">🏆</div>
+      <div class="hs-body">
+        <div class="hs-lbl">Personal Best</div>
+        <div class="hs-val" id="hsVal">Zone 1</div>
+        <div class="hs-sub" id="hsSub">no crawl yet</div>
+      </div>
+    </div>
     <div class="stack">
       <button class="btn" id="continueBtn" style="display:none">▸ Continue Run</button>
       <button class="btn" id="newBtn">New Run</button>
@@ -207,7 +229,6 @@
         <button class="btn ghost sm grow" id="howBtn">How to play</button>
         <button class="btn ghost sm grow" id="muteBtn">🔊 Sound</button>
       </div>
-      <div class="center muted" id="bestLine" style="margin-top:6px;font-size:13px"></div>
     </div>
   </div>
 
@@ -282,7 +303,10 @@
         <div class="stat"><b id="sSpd">10</b><span>Speed</span></div>
       </div>
       <div class="dots" id="pDots" style="margin-top:8px"></div>
-      <div class="formmini" id="formMini"></div>
+      <div class="formwrap">
+        <div class="formmini clip" id="formMini"></div>
+        <button class="formtoggle" id="formToggle" style="display:none"><span class="arw">⌄</span> <span id="formToggleLbl">all forms</span></button>
+      </div>
     </div>
     <div class="actions" id="actions">
       <button class="act strike" data-act="strike"><span class="ai">⚔️</span>Strike<span class="ad" id="adStrike">4 dmg</span></button>
@@ -493,8 +517,10 @@ const BOSSES = [
   {name:'The Bone Colossus', sub:'BOSS · a mountain that walks', kind:'colossus', hp:200, power:13, boss:true, armored:2, enrage:true},
   {name:'The Devouring Dark',sub:'BOSS · the end of the burrow', kind:'darkend',  hp:260, power:15, boss:true, enrage:true, vampiric:true},
 ];
-const ZONE_NAMES = ['The Rotting Root','The Chitin Warrens','The Sunless Mire','The Bonefall Deep','The Ember Hollows','The Screaming Dark','The Wyrm’s Gullet'];
-const ZONE_TINT  = ['#241a2e','#1a2a24','#1a2230','#26242e','#2e1f1a','#241826','#2a1a1a'];
+const FINAL_ZONE = 100;   // the Legendary God's Lair — the world stops changing here
+// the ruler of the Empyrean Throne — faced from the final Legendary zone onward
+const GOD_BOSS = {name:'Zephyrion, the Deathless', sub:'BOSS · a god upon the marble throne', kind:'god',
+  hp:360, power:17, boss:true, armored:2, enrage:true, vampiric:true};
 const POOLS = [
   ['grub','tick','beetle','mite'],
   ['beetle','wasp','toad','bat'],
@@ -504,8 +530,7 @@ const POOLS = [
   ['golem','wraith','widow','scorp'],
   ['drake','golem','wraith','leech'],
 ];
-function zoneName(z){ return ZONE_NAMES[(z-1)%ZONE_NAMES.length] + (z>ZONE_NAMES.length?' · '+z:''); }
-function zoneTint(z){ return ZONE_TINT[(z-1)%ZONE_TINT.length]; }
+function zoneName(z){ return themeFor(z).name; }   // themeFor is hoisted (art section)
 function zonePool(z){ return POOLS[Math.min(z-1, POOLS.length-1)]; }
 
 // Rooms grow longer and molt more often as you descend.
@@ -525,6 +550,7 @@ const SAVE_KEY='molt_save_v1', BEST_KEY='molt_best_v1';
 let muted = localStorage.getItem('molt_mute')==='1';
 let selForms = [];          // molt selection
 let busy = false;           // lock during animations
+let formsOpen = false;      // is the collected-forms tray expanded?
 
 /* ============================ AUDIO ============================ */
 let AC=null;
@@ -615,13 +641,26 @@ function nextRoom(){
   enterRoom();
 }
 
+function rgba(hex,a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+// Themes the WHOLE screen for the current zone: background, panels, borders, accent.
 function applyZoneTheme(z){
-  const zp=zpal(z);
-  const glow=mix(zp[4],'#0b0910',0.62), top=mix(zp[0],'#0b0910',0.18), bot=mix(zp[1],'#0b0910',0.28);
-  const bg=`radial-gradient(135% 80% at 50% -6%, ${glow} 0%, ${top} 24%, ${bot} 62%, #08060d 100%)`;
-  document.body.style.background=bg;
-  document.documentElement.style.setProperty('--zoneaccent', zp[4]);
-  document.documentElement.style.setProperty('--zonedim', mix(zp[4],'#0b0910',0.5));
+  const zp=zpal(z), acc=zp[4];
+  const glow=mix(acc,'#0b0910',0.58), top=mix(zp[0],'#0b0910',0.08), bot=mix(zp[1],'#07050c',0.16);
+  document.body.style.background=`radial-gradient(150% 90% at 50% -8%, ${glow} 0%, ${top} 26%, ${bot} 66%, #06040b 100%)`;
+  const r=document.documentElement.style;
+  r.setProperty('--zoneaccent', acc);
+  r.setProperty('--zonedim', mix(acc,'#0b0910',0.5));
+  r.setProperty('--panel',  rgba(mix('#1b1730', acc, 0.16), 0.72));
+  r.setProperty('--panel2', rgba(mix('#272040', acc, 0.18), 0.72));
+  r.setProperty('--line',   mix('#3a325c', acc, 0.38));
+}
+// Tint the three combat buttons toward the zone while keeping their meaning (red/blue/green).
+function themeButtons(z){
+  const acc=zpal(z)[4];
+  const set=(sel,base)=>{ const el=$(sel); if(!el) return;
+    el.style.background=`linear-gradient(180deg, ${mix(base,acc,0.30)}, ${mix(mix(base,'#000',0.35),acc,0.12)})`;
+    el.style.borderColor=mix(acc,'#000',0.12); };
+  set('.act.strike','#5a2540'); set('.act.guard','#1e3a55'); set('.act.dodge','#1e5240');
 }
 
 function enterRoom(){
@@ -739,11 +778,12 @@ function renderMolt(isStart){
   const grid=$('#moltGrid'); grid.innerHTML='';
   grid.classList.remove('expanded');   // start compact each molt
   const xb=$('#moltExpand'); if(xb){ xb.classList.remove('open'); $('#expandLbl').textContent='Show full details'; }
-  G.offer.forEach(id=>{
+  G.offer.forEach((id,i)=>{
     const f=FORM[id];
     const owned = G.forms.includes(id);
     const rc=RARITY[f.rarity].color;
     const el=document.createElement('div'); el.className='form r-'+f.rarity; el.dataset.id=id;
+    el.dataset.idx=i; el.dataset.rank=RARITY_ORDER.indexOf(f.rarity);
     el.style.setProperty('--rc', rc);
     const mods=[];
     for(const[k,v]of Object.entries(f.mods)){
@@ -788,6 +828,12 @@ $('#moltExpand').onclick=()=>{
   const open=grid.classList.toggle('expanded');
   btn.classList.toggle('open', open);
   $('#expandLbl').textContent = open ? 'Collapse' : 'Show full details';
+  // sort cards by rarity (best first) when expanded; restore offer order when collapsed
+  const cards=[...grid.children];
+  cards.sort((a,b)=> open
+    ? (+b.dataset.rank - +a.dataset.rank) || (+a.dataset.idx - +b.dataset.idx)
+    : (+a.dataset.idx - +b.dataset.idx));
+  cards.forEach(c=>grid.appendChild(c));
   sfx.pick();
 };
 
@@ -813,17 +859,41 @@ $('#moltConfirm').onclick=()=>{
 Object.keys(BEASTS).forEach(k=>BEASTS[k].kind=k);
 Object.keys(ELITES).forEach(k=>ELITES[k].kind=k);
 
-// Per-zone scene palettes: [skyTop, skyBottom, floor, motif, tint]
-const ZPAL = [
-  ['#2a1f16','#160f0a','#0f0a07','#6a4a2a','#caa24a'], // 1 Rotting Root
-  ['#2a2410','#161206','#100d05','#7a5a1a','#e0b040'], // 2 Chitin Warrens
-  ['#12241f','#081310','#050d0a','#1f5a4a','#40c0a0'], // 3 Sunless Mire
-  ['#1e1c26','#0f0e15','#08070c','#4a4658','#b8b0d0'], // 4 Bonefall Deep
-  ['#2c1710','#170a06','#100603','#8a3a1a','#ff8040'], // 5 Ember Hollows
-  ['#1c1230','#0e0820','#070414','#3a2060','#a060f0'], // 6 Screaming Dark
-  ['#2a1018','#160709','#0f0405','#7a1f2a','#ff5060'], // 7 Wyrm's Gullet
-];
-function zpal(z){ return ZPAL[(z-1)%ZPAL.length]; }
+/* ---- 100 procedurally-themed battlegrounds, then a fixed Legendary finale ---- */
+const MOTIFS=['roots','hex','reeds','bones','embers','voideyes','ribs','crystals','fungus','webs'];
+const NAME_ADJ=['Rotting','Sunless','Hollow','Weeping','Screaming','Frozen','Ember','Ashen','Whispering','Bleeding',
+  'Shattered','Forgotten','Molten','Gilded','Drowned','Cursed','Silent','Writhing','Putrid','Glittering',
+  'Fungal','Obsidian','Withered','Howling','Sunken','Venomous','Starving','Crawling','Buried','Endless'];
+const NAME_NOUN=['Root','Warren','Mire','Deep','Hollows','Gullet','Nest','Abyss','Burrow','Marsh',
+  'Vault','Reach','Hive','Catacomb','Sprawl','Den','Gorge','Tangle','Chasm','Warrens',
+  'Cradle','Maw','Expanse','Roost','Furrow','Threshold','Barrow','Warren','Pit','Cloister'];
+function hsl(h,s,l){ // -> hex
+  h=((h%360)+360)%360; s/=100; l/=100;
+  const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  const c=v=>('0'+Math.round(v*255).toString(16)).slice(-2);
+  return '#'+c(f(0))+c(f(8))+c(f(4));
+}
+// The Legendary finale: a god's lair out of Ancient Greece — marble, gold, divine sky.
+const GREEK = {
+  name:'The Empyrean Throne', motif:'columns', legendary:true,
+  pal:['#35529e','#111d46','#0c1330','#f0d98a','#ffe07a'],
+};
+function themeFor(z){
+  if(z>=FINAL_ZONE) return GREEK;
+  const t=z-1;
+  const hue=(t*41+205)%360;
+  const pal=[
+    hsl(hue,42,15),            // sky top
+    hsl(hue,50,7),             // sky bottom
+    hsl((hue+8)%360,46,5),     // floor
+    hsl((hue+28)%360,54,38),   // motif
+    hsl((hue+16)%360,72,62),   // bright accent
+  ];
+  const name='The '+NAME_ADJ[(z*7)%NAME_ADJ.length]+' '+NAME_NOUN[(z*5+3)%NAME_NOUN.length];
+  return { name, pal, motif:MOTIFS[t%MOTIFS.length] };
+}
+function zpal(z){ return themeFor(z).pal; }
 
 let _gid=0; const uid=()=>'m'+(_gid++);
 const mix=(a,b,t)=>{ // hex blend
@@ -868,6 +938,7 @@ const MON = {
   sovereign:{shape:'mass',  pal:['#8aaa5a','#3a5a2a'], eyes:3, bubbles:true, soft:true, maw:true, boss:true},
   colossus: {shape:'mass',  pal:['#e0d8be','#7a7058'], eyes:2, horns:true, bony:true, chunky:true, boss:true},
   darkend:  {shape:'ghost', pal:['#6a3aa0','#160a2a'], eyes:6, glow:true, aura:true, boss:true, big:true},
+  god:      {shape:'mass',  pal:['#f2e3ad','#b89a4a'], eyes:2, crown:true, horns:false, bony:true, aura:true, boss:true, big:true, divine:true},
 };
 function monFor(tmpl){ return MON[tmpl.kind] || MON.grub; }
 
@@ -900,8 +971,8 @@ function drawCreature(m, zone, cx, cy, scale, defs){
   const dark=mix(c2,'#000',0.35), rim=mix(c1,'#fff',0.25);
   const bid=uid(), gid=uid();
   defs.push(`<radialGradient id="${bid}" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${rim}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></radialGradient>`);
-  const glow = mix(m.glow?rim:'#ff5a3c', m.pal[0], 0.15);
-  const eyeGlow = m.shape==='ghost'? '#bfe0ff' : (m.boss? '#ff5030' : '#ffd24a');
+  const glow = m.divine? '#ffe28a' : mix(m.glow?rim:'#ff5a3c', m.pal[0], 0.15);
+  const eyeGlow = m.divine? '#fff3b0' : (m.shape==='ghost'? '#bfe0ff' : (m.boss? '#ff5030' : '#ffd24a'));
   const fierce = !!(m.boss || m.arms || m.claws || m.fang || m.horns || m.tail==='sting');
   const belly = mix(c1,'#fff',0.16);   // lit underside for volume
   let s=`<g transform="translate(${cx} ${cy}) scale(${scale})">`;
@@ -1005,43 +1076,85 @@ function drawCreature(m, zone, cx, cy, scale, defs){
   return s;
 }
 
-// per-zone atmospheric backdrop
+// per-zone atmospheric backdrop, driven by the theme's motif
 function sceneSVG(zone, defs){
-  const zp=zpal(zone), zi=(zone-1)%ZPAL.length;
+  const th=themeFor(zone), zp=th.pal, motif=th.motif;
   const sky=uid(); defs.push(`<linearGradient id="${sky}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${zp[0]}"/><stop offset="1" stop-color="${zp[1]}"/></linearGradient>`);
   let s=`<rect x="0" y="0" width="240" height="180" fill="url(#${sky})"/>`;
   const mo=zp[3];
-  // motif silhouettes per zone
-  if(zi===0){ // roots
+  if(motif==='roots'){
     s+=`<g fill="${mo}" opacity=".5"><path d="M20,0 q6,50 -6,90 q14,-30 22,-90 Z"/><path d="M210,0 q-8,60 6,110 q-18,-40 -24,-110 Z"/><path d="M120,0 q-4,30 4,60 q8,-30 4,-60 Z"/></g>`;
-  } else if(zi===1){ // chitin hexes
+  } else if(motif==='hex'){
     s+=`<g fill="none" stroke="${mo}" stroke-width="3" opacity=".35">`;
     for(let i=0;i<6;i++){ const x=30+i*38, y= i%2?26:150; s+=`<path d="M${x},${y-14} l12,7 l0,14 l-12,7 l-12,-7 l0,-14 Z"/>`; }
     s+=`</g>`;
-  } else if(zi===2){ // reeds + mist
+  } else if(motif==='reeds'){
     s+=`<g stroke="${mo}" stroke-width="4" opacity=".4" stroke-linecap="round">`;
     for(let i=0;i<7;i++){ const x=16+i*32; s+=`<line x1="${x}" y1="180" x2="${x+ (i%2?8:-8)}" y2="${70+ (i%3)*20}"/>`; }
     s+=`</g><ellipse cx="120" cy="150" rx="150" ry="26" fill="${mix(zp[2],'#fff',.08)}" opacity=".35"/>`;
-  } else if(zi===3){ // bones / ribs
+  } else if(motif==='bones'){
     s+=`<g stroke="${mix(mo,'#fff',.4)}" stroke-width="4" opacity=".4" fill="none">`;
     for(let i=0;i<5;i++){ const y=40+i*26; s+=`<path d="M30,${y} Q120,${y-18} 210,${y}"/>`; }
     s+=`</g>`;
-  } else if(zi===4){ // embers + cracks
+  } else if(motif==='embers'){
     s+=`<g stroke="${mo}" stroke-width="3" opacity=".5" fill="none"><path d="M0,150 L60,120 L90,140 L150,110 L210,135 L240,120"/></g>`;
     s+=`<g fill="${mix(mo,'#fff',.3)}">`;
     for(let i=0;i<14;i++){ s+=`<circle cx="${(i*53)%240}" cy="${20+(i*37)%140}" r="${1+ (i%3)}" opacity="${.3+ (i%4)*.15}"><animate attributeName="cy" values="${20+(i*37)%140};${(20+(i*37)%140)-14};${20+(i*37)%140}" dur="${3+i%3}s" repeatCount="indefinite"/></circle>`; }
     s+=`</g>`;
-  } else if(zi===5){ // void eyes
+  } else if(motif==='voideyes'){
     s+=`<g fill="${mo}" opacity=".5">`;
     for(let i=0;i<7;i++){ const x=(i*61+20)%230, y=20+(i*41)%130; s+=`<ellipse cx="${x}" cy="${y}" rx="7" ry="3"><animate attributeName="rx" values="7;0;7" dur="${4+i%3}s" begin="${i*0.5}s" repeatCount="indefinite"/></ellipse>`; }
     s+=`</g>`;
-  } else { // gullet ribs / flesh
+  } else if(motif==='crystals'){
+    s+=`<g fill="${mo}" opacity=".45" stroke="${mix(mo,'#fff',.4)}" stroke-width="1">`;
+    for(let i=0;i<6;i++){ const x=20+i*40, h=30+(i*29)%60, up=i%2; const y=up?0:180; const dy=up?h:-h;
+      s+=`<path d="M${x},${y} l10,${dy*0.4} l-4,${dy} l-12,0 l-4,${-dy} Z"/>`; }
+    s+=`</g>`;
+  } else if(motif==='fungus'){
+    s+=`<g>`;
+    for(let i=0;i<7;i++){ const x=18+i*32, cap=8+(i%3)*4, y=150-(i%4)*8;
+      s+=`<line x1="${x}" y1="180" x2="${x}" y2="${y}" stroke="${mix(mo,'#fff',.3)}" stroke-width="4"/><ellipse cx="${x}" cy="${y}" rx="${cap}" ry="${cap*0.6}" fill="${mo}" opacity=".55"/>`; }
+    s+=`</g>`;
+  } else if(motif==='webs'){
+    s+=`<g stroke="${mix(mo,'#fff',.35)}" stroke-width="1.4" fill="none" opacity=".4">`;
+    for(const cx of [30,210]){ for(let r=14;r<=64;r+=16) s+=`<path d="M${cx},0 L${cx-r},${r} M${cx},0 L${cx+r},${r}"/>`;
+      for(let r=16;r<=60;r+=16) s+=`<path d="M${cx-r},${r} Q${cx},${r*0.6} ${cx+r},${r}"/>`; }
+    s+=`</g>`;
+  } else if(motif==='columns'){ // GREEK: sunlit marble columns + a golden sun-disc & laurels
+    const gold=zp[3], marble=mix(zp[0],'#fff',.74), cap=mix('#f7e39a',gold,.4), aid=uid(), sid=uid();
+    defs.push(`<radialGradient id="${aid}" cx="50%" cy="14%" r="80%"><stop offset="0" stop-color="#fff6d6" stop-opacity=".5"/><stop offset=".5" stop-color="${gold}" stop-opacity=".28"/><stop offset="1" stop-color="${gold}" stop-opacity="0"/></radialGradient>`);
+    defs.push(`<radialGradient id="${sid}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c0"/><stop offset=".6" stop-color="${gold}"/><stop offset="1" stop-color="${mix(gold,'#a5761a',.5)}"/></radialGradient>`);
+    s+=`<rect x="0" y="0" width="240" height="180" fill="url(#${aid})"/>`;
+    // divine rays fanning from a sun at the top-centre
+    s+=`<g stroke="#ffe9a6" stroke-width="9" opacity=".14">`;
+    for(let i=-4;i<=4;i++) s+=`<line x1="120" y1="26" x2="${120+i*48}" y2="185"/>`;
+    s+=`</g>`;
+    s+=`<circle cx="120" cy="24" r="16" fill="url(#${sid})"><animate attributeName="r" values="15;18;15" dur="3.4s" repeatCount="indefinite"/></circle>`;
+    // laurel sprigs flanking the sun
+    s+=`<g stroke="${mix('#8ab06a',gold,.3)}" stroke-width="2.5" fill="none" opacity=".85">`;
+    for(const dir of [-1,1]){ let l=`<path d="M120,40 q${dir*22},-2 ${dir*34},-14"/>`;
+      for(let k=0;k<4;k++){ const bx=120+dir*(10+k*7), by=38-k*3.5; l+=`<path d="M${bx},${by} q${dir*5},-6 ${dir*11},-4"/>`; }
+      s+=l; }
+    s+=`</g>`;
+    // fluted marble columns
+    s+=`<g>`;
+    for(const cx of [24,216,68,172]){ const w=cx<50||cx>200?19:13;
+      s+=`<rect x="${cx-w}" y="20" width="${w*2}" height="146" fill="${marble}"/>`
+        +`<rect x="${cx-w-5}" y="14" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
+        +`<rect x="${cx-w-5}" y="160" width="${w*2+10}" height="9" rx="2" fill="${cap}"/>`
+        +`<g stroke="${mix(marble,'#3a3050',.22)}" stroke-width="1.5">`
+        +`<line x1="${cx-w*0.55}" y1="23" x2="${cx-w*0.55}" y2="160"/><line x1="${cx}" y1="23" x2="${cx}" y2="160"/><line x1="${cx+w*0.55}" y1="23" x2="${cx+w*0.55}" y2="160"/></g>`
+        +`<rect x="${cx-w}" y="20" width="${w*0.5}" height="146" fill="#fff" opacity=".18"/>`;
+    }
+    s+=`</g>`;
+  } else { // ribs / flesh (default)
     s+=`<g stroke="${mo}" stroke-width="6" opacity=".35" fill="none" stroke-linecap="round">`;
     for(let i=0;i<5;i++){ const x=20+i*50; s+=`<path d="M${x},0 Q${x+16},90 ${x},180"/>`; }
     s+=`</g>`;
   }
   // floor
-  s+=`<ellipse cx="120" cy="176" rx="150" ry="30" fill="${zp[2]}" opacity=".85"/>`;
+  const floorCol = motif==='columns' ? mix(zp[0],'#fff',.35) : zp[2];
+  s+=`<ellipse cx="120" cy="176" rx="150" ry="30" fill="${floorCol}" opacity="${motif==='columns'?'.7':'.85'}"/>`;
   return s;
 }
 
@@ -1076,14 +1189,18 @@ function heroArtSVG(){
 /* ============================ COMBAT ============================ */
 function startCombat(type){
   let tmpl, isBoss=false;
-  if(type==='B'){ tmpl=BOSSES[Math.min(G.zone-1, BOSSES.length-1)]; isBoss=true; }
+  if(type==='B'){ tmpl = G.zone>=FINAL_ZONE ? GOD_BOSS : BOSSES[Math.min(G.zone-1, BOSSES.length-1)]; isBoss=true; }
   else if(type==='e'){ tmpl=pick(Object.values(ELITES)); isBoss=true; }
   else { tmpl=BEASTS[pick(zonePool(G.zone))]; }
   // difficulty ramps hard with depth. Power ACCELERATES (quadratic term) so it
   // keeps pace with the player's compounding build — no more unkillable late game.
-  const z=G.zone-1;
+  // Difficulty plateaus around zone ~31 (the curve would otherwise run away over
+  // 100 levels); past that the battlegrounds keep changing but the numbers stay sane.
+  const z=Math.min(G.zone-1, 30);
   const hpScale = 1 + 0.44*z;
-  const powScale= 1 + 0.40*z + 0.035*z*z;
+  // mild acceleration so damage keeps pace with the player's build (the 18% chip
+  // floor does the heavy lifting against pure-tank builds), without one-shotting.
+  const powScale= 1 + 0.34*z + 0.013*z*z;
   const eHp=Math.round(tmpl.hp*hpScale*(type==='e'?1.2:1));
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
@@ -1100,6 +1217,7 @@ function startCombat(type){
   G.eturn = 0;            // enemy turn counter (Chrono Gland)
   G.poison = 0;           // poison stacks on YOU (from toxic enemies)
   busy=false;             // every fight starts with input unlocked (never inherit a stale lock)
+  formsOpen=false;        // forms tray starts collapsed each fight
   decideIntent();
   logMsg(`<b>${tmpl.name}</b> — <i>${tmpl.sub||''}</i> — blocks the tunnel!`);
   show('combat');
@@ -1132,8 +1250,8 @@ function intentHtml(){
   const e=G.enemy, it=e.intent;
   let cls='intent', icon='⚔️', txt='';
   if(it.type==='attack'){ txt=`Attacks — <b>${previewDmg(it.dmg)}</b>`; }
-  else if(it.type==='heavy'){ icon='💥'; cls+=' big'; txt=`Heavy Blow — <b>${previewDmg(it.dmg)}</b>`; }
-  else if(it.type==='unleash'){ icon='☄️'; cls+=' big'; txt=`UNLEASH — <b>${previewDmg(it.dmg)}</b>!`; }
+  else if(it.type==='heavy'){ icon='💥'; cls+=' warn'; txt=`Heavy Blow — <b>${previewDmg(it.dmg)}</b>`; }
+  else if(it.type==='unleash'){ icon='☄️'; cls+=' warn'; txt=`UNLEASH — <b>${previewDmg(it.dmg)}</b>!`; }
   else if(it.type==='charge'){ icon='🌀'; cls+=' calm'; txt=`Charging… <span class="muted">(vulnerable!)</span>`; }
   else if(it.type==='defend'){ icon='🛡️'; cls+=' calm'; txt=`Bracing — takes half damage`; }
   return `<div class="${cls}">${icon} ${txt}</div>`;
@@ -1182,9 +1300,22 @@ function renderCombat(){
   if((G.rampage||0)>0) pdots.push(`<span class="dot" style="color:#ffcf6b">💢 +${G.rampage} Pow</span>`);
   if(pd) pd.innerHTML=pdots.join('');
   $('#blockChip').style.display='none';
+  themeButtons(G.zone);
+  // collected forms: clip to 2 rows, arrow expands; sorted by rarity when open
   const fm=$('#formMini'); fm.innerHTML='';
-  G.forms.forEach(id=>{ const f=FORM[id]; const s=document.createElement('span'); s.className='f';
-    s.textContent=f.icon; s.title=f.name; s.style.borderColor=RARITY[f.rarity].color+'88'; fm.appendChild(s); });
+  let ids=G.forms.slice();
+  if(formsOpen) ids.sort((a,b)=>RARITY_ORDER.indexOf(FORM[b].rarity)-RARITY_ORDER.indexOf(FORM[a].rarity));
+  ids.forEach(id=>{ const f=FORM[id]; const s=document.createElement('span'); s.className='f';
+    s.textContent=f.icon; s.title=f.name+' ('+RARITY[f.rarity].name+')'; s.style.borderColor=RARITY[f.rarity].color+'88'; fm.appendChild(s); });
+  fm.classList.toggle('clip', !formsOpen);
+  // show the toggle only when the forms actually overflow two rows
+  const tog=$('#formToggle');
+  if(tog){
+    const overflow = fm.scrollHeight > fm.clientHeight + 3;
+    tog.style.display = (formsOpen || overflow) ? 'flex' : 'none';
+    tog.classList.toggle('open', formsOpen);
+    $('#formToggleLbl').textContent = formsOpen ? 'show less' : 'all '+G.forms.length+' forms';
+  }
   renderLog();
 }
 
@@ -1217,6 +1348,7 @@ $('#actions').addEventListener('click',e=>{
   const b=e.target.closest('.act'); if(!b||busy||!G||!G.enemy) return;
   doAction(b.dataset.act);
 });
+$('#formToggle').onclick=()=>{ formsOpen=!formsOpen; sfx.pick(); if(G&&G.enemy) renderCombat(); };
 
 function doAction(act){
   if(busy || !G || !G.enemy) return;
@@ -1439,7 +1571,8 @@ $$('[data-back]').forEach(b=>b.onclick=()=>show('title'));
 $('#overAgain').onclick=()=>{ resetBase(); newRun(); };
 $('#overMenu').onclick=()=>{ resetTheme(); refreshTitle(); show('title'); };
 $('#mapMenu').onclick=()=>{ save(); refreshTitle(); show('title'); };
-function resetTheme(){ document.body.style.background=''; }
+function resetTheme(){ document.body.style.background='';
+  ['--panel','--panel2','--line','--zoneaccent','--zonedim'].forEach(p=>document.documentElement.style.removeProperty(p)); }
 $('#muteBtn').onclick=()=>{ muted=!muted; localStorage.setItem('molt_mute',muted?'1':'0'); updateMute(); if(!muted) sfx.pick(); };
 
 function updateMute(){ $('#muteBtn').textContent = muted?'🔇 Muted':'🔊 Sound'; }
@@ -1472,7 +1605,8 @@ function refreshTitle(){
   const s=loadSave();
   $('#continueBtn').style.display = s ? 'block':'none';
   const best=getBest();
-  $('#bestLine').innerHTML = best ? `Deepest crawl: <b>Zone ${best}</b>` : 'No crawl yet — good luck down there.';
+  $('#hsVal').textContent = 'Zone '+Math.max(1,best);
+  $('#hsSub').textContent = best ? themeFor(best).name + (best>=FINAL_ZONE?' — the summit!':'') : 'no crawl yet — good luck down there';
   updateMute();
 }
 
