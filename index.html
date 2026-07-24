@@ -562,7 +562,11 @@ function zonePool(z){ return POOLS[Math.min(z-1, POOLS.length-1)]; }
 // Rooms grow longer and molt more often as you descend.
 // c=combat e=elite M=molt T=treasure R=rest B=boss
 function buildRooms(zone){
-  const r=['c','c','M','c','T','c','e','M','R'];
+  // The first zone is a warm-up: no elite, so a fresh beast reaches the boss with
+  // two molts under its shell instead of hitting an attrition wall half-built.
+  const r = zone>=2
+    ? ['c','c','M','c','T','c','e','M','R']
+    : ['c','c','M','c','T','c','c','M','R'];
   for(let i=0;i<Math.min(zone-1,6);i++) r.splice(4+i,0,'c'); // extra combats deeper
   if(zone>=6) r.splice(Math.floor(r.length/2),0,'M');        // extra mid-zone molt, deep only
   if(zone>=5) r.splice(2,0,'e');                             // extra elite in deep zones
@@ -1312,8 +1316,8 @@ function heroArtSVG(){
 const EMOLTS = [
   {id:'plated',   icon:'🛡', name:'Plated',      apply:(e,z)=>{ e.armor += 1+Math.floor(z/25); }},
   {id:'brutish',  icon:'💪', name:'Brutish',     apply:(e)=>{ e.power = Math.round(e.power*1.28); }},
-  {id:'bloated',  icon:'🎈', name:'Bloated',     apply:(e)=>{ e.maxHp = Math.round(e.maxHp*1.4); e.hp=e.maxHp; }},
-  {id:'regen',    icon:'💚', name:'Regenerating', apply:(e)=>{ e.eRegen = Math.max(2,Math.round(e.maxHp*0.05)); }},
+  {id:'bloated',  icon:'🎈', name:'Bloated',     apply:(e)=>{ e.maxHp = Math.round(e.maxHp*1.25); e.hp=e.maxHp; }},
+  {id:'regen',    icon:'💚', name:'Regenerating', apply:(e)=>{ e.eRegen = Math.max(2,Math.round(e.maxHp*0.03)); }},
   {id:'spiked',   icon:'🌵', name:'Spiked',      apply:(e)=>{ e.eThorns = Math.max(2,Math.round(e.power*0.35)); }},
   {id:'venomous', icon:'🧪', name:'Venomous',    apply:(e)=>{ e.toxic=true; }},
   {id:'vampiric', icon:'🩸', name:'Vampiric',    apply:(e)=>{ e.vampiric=true; }},
@@ -1322,8 +1326,9 @@ const EMOLTS = [
 ];
 function rollEnemyMolts(e, zone, type){
   let n = Math.min(3, Math.floor(zone/4));           // regular foes
-  if(type==='e') n = Math.min(4, n+1);               // elites
-  if(e.boss)     n = Math.min(5, n+2);               // bosses are the most mutated
+  if(type==='e') n += 1;                             // elites
+  if(e.boss)     n += (zone>=6?2 : zone>=2?1 : 0);   // bosses mutate more, but not the very first
+  n = Math.min(e.boss?5:4, n);
   const pool=EMOLTS.slice(); e.molts=[];
   for(let i=0;i<n && pool.length;i++){
     const m=pool.splice(rand(pool.length),1)[0];
