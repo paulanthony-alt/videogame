@@ -638,12 +638,24 @@ function applyZoneTheme(z){
   r.setProperty('--line',   mix('#3a325c', acc, 0.38));
 }
 // Tint the three combat buttons toward the zone while keeping their meaning (red/blue/green).
+// The three combat buttons are built FROM the battleground's own palette — so they
+// belong to the scene — with just a hint of red/blue/green to keep their meaning.
 function themeButtons(z){
-  const acc=zpal(z)[4];
-  const set=(sel,base)=>{ const el=$(sel); if(!el) return;
-    el.style.background=`linear-gradient(180deg, ${mix(base,acc,0.30)}, ${mix(mix(base,'#000',0.35),acc,0.12)})`;
-    el.style.borderColor=mix(acc,'#000',0.12); };
-  set('.act.strike','#5a2540'); set('.act.guard','#1e3a55'); set('.act.dodge','#1e5240');
+  const zp=zpal(z), mo=zp[3], acc=zp[4];
+  const base=mix(mo, acc, 0.5);                 // the battleground's signature colour
+  const border=mix(acc, '#ffffff', 0.15);
+  const glow=rgba(acc, 0.42);
+  const set=(sel, tint)=>{ const el=$(sel); if(!el) return;
+    const c1=mix(base, tint, 0.26);
+    const c2=mix(mix(base, '#000000', 0.5), tint, 0.10);
+    el.style.background=`linear-gradient(180deg, ${c1} 0%, ${c2} 100%)`;
+    el.style.borderColor=border;
+    el.style.boxShadow=`inset 0 1px 0 ${rgba('#ffffff',0.16)}, inset 0 -10px 16px -10px #000, 0 0 16px -6px ${glow}`;
+    const ad=el.querySelector('.ad'); if(ad) ad.style.color=mix(acc,'#ffffff',0.35);
+  };
+  set('.act.strike', '#ff5a3c');   // attack → warm
+  set('.act.guard',  '#3a86e0');   // guard  → cool
+  set('.act.dodge',  '#37d07a');   // dodge  → green
 }
 
 function enterRoom(){
