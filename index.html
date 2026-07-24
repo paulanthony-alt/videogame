@@ -9,10 +9,13 @@
 <title>MOLT — a road-trip roguelike</title>
 <style>
   :root{
-    --bg:#0d0b14; --bg2:#161225; --panel:#1d1830; --panel2:#251f3d;
-    --ink:#ece7fb; --dim:#9a91c0; --line:#332b52;
+    --bg:#0d0b14; --bg2:#161225;
+    /* panels are slightly translucent so the zone colour behind bleeds through */
+    --panel:rgba(30,25,50,.72); --panel2:rgba(41,34,68,.72);
+    --ink:#ece7fb; --dim:#9a91c0; --line:#3a325c;
     --hp:#e0556b; --hp2:#8f2b45; --enemy:#f0a04b; --xp:#54c6a6;
     --gold:#f5c752; --pick:#7c6cf0; --pick2:#a99bff; --danger:#ff6b6b;
+    --zoneaccent:#a99bff; --zonedim:#2a2350;
     --shadow:0 10px 30px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
@@ -83,12 +86,24 @@
   .bar > span{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:11px; font-weight:800; color:#fff; text-shadow:0 1px 2px #000a}
   .enemybox{background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:14px; text-align:center; position:relative}
-  .enemyart{line-height:0; margin:2px 0; display:block}
-  .enemyart svg{width:230px; max-width:78%; height:auto; display:block; margin:0 auto;
-    border-radius:16px; box-shadow:inset 0 0 40px rgba(0,0,0,.55), 0 8px 18px rgba(0,0,0,.4)}
-  .enemyart svg.boss{max-width:88%; width:270px}
-  .enemyart.hit{animation:shake .3s}
-  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px) rotate(-3deg)}75%{transform:translateX(9px) rotate(3deg)}}
+  /* the battle arena: static scene + two animated combatants layered on top */
+  .arena{position:relative; width:100%; height:186px; margin:6px 0; border-radius:16px; overflow:hidden;
+    box-shadow:inset 0 0 46px rgba(0,0,0,.6), 0 8px 18px rgba(0,0,0,.4)}
+  .arena .scene{position:absolute; inset:0}
+  .arena .scene svg{width:100%; height:100%; display:block}
+  .mon{position:absolute; pointer-events:none; will-change:transform}
+  .mon svg{width:100%; height:100%; display:block; filter:drop-shadow(0 6px 9px rgba(0,0,0,.5))}
+  #enemyMon{right:-6%; bottom:2%; width:60%; height:88%}
+  #enemyMon.boss{right:-10%; width:74%; height:100%}
+  #heroMon{left:3%; bottom:2%; width:34%; height:56%; z-index:2}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px) rotate(-3deg)}75%{transform:translateX(8px) rotate(3deg)}}
+  #enemyMon.hit{animation:shake .3s}
+  #heroMon.hurt{animation:shake .3s}
+  @keyframes heroLungeK{0%{transform:translate(0,0)}38%{transform:translate(120px,-14px) scale(1.08)}62%{transform:translate(120px,-14px) scale(1.08)}100%{transform:translate(0,0)}}
+  #heroMon.lunge{animation:heroLungeK .46s cubic-bezier(.35,.9,.4,1)}
+  @keyframes enemyLungeK{0%{transform:translate(0,0)}40%{transform:translate(-96px,10px) scale(1.03)}64%{transform:translate(-96px,10px)}100%{transform:translate(0,0)}}
+  #enemyMon.elunge{animation:enemyLungeK .46s cubic-bezier(.35,.9,.4,1)}
+  @media (prefers-reduced-motion:reduce){ #heroMon.lunge,#enemyMon.elunge,#enemyMon.hit,#heroMon.hurt{animation:none} }
   .intent{display:inline-flex; gap:6px; align-items:center; margin-top:8px; padding:7px 14px;
     border-radius:999px; font-weight:800; font-size:14px; border:1px solid var(--line); background:var(--panel2)}
   .intent.big{color:var(--danger); border-color:var(--danger); box-shadow:0 0 14px rgba(255,107,107,.35)}
@@ -123,23 +138,39 @@
   .esub{color:var(--dim); font-size:12px; font-style:italic; margin-top:1px}
 
   /* ---------- Molt ---------- */
-  .moltgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0}
-  .form{background:var(--panel); border:2px solid var(--rc,var(--line)); border-radius:16px; padding:12px 12px 13px; cursor:pointer;
-    position:relative; transition:transform .1s, box-shadow .15s; text-align:left;
+  /* compact by default (4 small tiles), expands to full detail via the arrow */
+  .moltgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:12px 0}
+  .form{background:var(--panel); border:2px solid var(--rc,var(--line)); border-radius:14px; padding:9px 6px 10px; cursor:pointer;
+    position:relative; transition:transform .1s, box-shadow .15s; text-align:center;
     box-shadow:0 0 0 0 var(--rc); overflow:hidden}
   .form::before{content:''; position:absolute; inset:0 0 auto 0; height:3px; background:var(--rc,var(--line))}
   .form.r-epic{box-shadow:0 0 16px -4px var(--rc)}
   .form.r-legendary{box-shadow:0 0 22px -3px var(--rc); animation:legpulse 2.4s ease-in-out infinite}
   @keyframes legpulse{50%{box-shadow:0 0 30px 0px var(--rc)}}
-  .form:active{transform:scale(.98)}
+  .form:active{transform:scale(.97)}
   .form.sel{box-shadow:0 0 0 3px var(--rc), 0 0 18px -2px var(--rc); background:var(--panel2)}
-  .form .rlabel{font-size:10px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px}
-  .form .fi{font-size:34px; line-height:1}
-  .form h3{font-size:15px; margin:3px 0}
-  .form .fd{font-size:12px; color:var(--dim); line-height:1.35; margin-top:4px}
-  .form .tick{position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%;
-    background:var(--rc,var(--pick)); color:#0d0b14; display:none; align-items:center; justify-content:center; font-weight:900; font-size:14px; z-index:2}
+  .form .rlabel{font-size:8.5px; font-weight:900; letter-spacing:.05em; text-transform:uppercase; margin-bottom:1px}
+  .form .fi{font-size:30px; line-height:1}
+  .form h3{font-size:10.5px; margin:2px 0 0; line-height:1.15}
+  .form .fd{font-size:12px; color:var(--dim); line-height:1.35; margin-top:4px; display:none}
+  .form .mods{display:none}
+  .form .tick{position:absolute; top:5px; right:5px; width:20px; height:20px; border-radius:50%;
+    background:var(--rc,var(--pick)); color:#0d0b14; display:none; align-items:center; justify-content:center; font-weight:900; font-size:12px; z-index:2}
   .form.sel .tick{display:flex}
+  /* expanded: full 2x2 cards with mods + descriptions */
+  .moltgrid.expanded{grid-template-columns:1fr 1fr; gap:10px}
+  .moltgrid.expanded .form{padding:12px 12px 13px; text-align:left; border-radius:16px}
+  .moltgrid.expanded .form .rlabel{font-size:10px}
+  .moltgrid.expanded .form .fi{font-size:34px}
+  .moltgrid.expanded .form h3{font-size:15px; margin:3px 0}
+  .moltgrid.expanded .form .fd{display:block}
+  .moltgrid.expanded .form .mods{display:flex}
+  .moltgrid.expanded .form .tick{width:24px; height:24px; font-size:14px; top:8px; right:8px}
+  .expandbtn{display:flex; align-items:center; justify-content:center; gap:7px; width:100%;
+    background:var(--panel2); border:1px solid var(--line); color:var(--dim); border-radius:12px;
+    padding:9px; font-family:inherit; font-weight:800; font-size:13px; cursor:pointer; margin-bottom:10px}
+  .expandbtn .arw{display:inline-block; transition:transform .2s; font-size:15px}
+  .expandbtn.open .arw{transform:rotate(180deg)}
   .mods{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
   .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
   .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
@@ -230,7 +261,11 @@
       <div style="font-weight:800" id="enemyName">Grub</div>
       <div class="esub" id="enemySub">a bloated crawler</div>
       <div class="bar" style="margin-top:6px"><i id="enemyHpBar" style="background:linear-gradient(90deg,#f0a04b,#e0556b)"></i><span id="enemyHpTxt"></span></div>
-      <div class="enemyart" id="enemyArt">🐛</div>
+      <div class="arena" id="arena">
+        <div class="scene" id="sceneArt"></div>
+        <div class="mon heroMon" id="heroMon"></div>
+        <div class="mon enemyMon" id="enemyMon"></div>
+      </div>
       <div id="intentWrap"></div>
       <div class="dots" id="enemyDots"></div>
     </div>
@@ -259,11 +294,12 @@
   <!-- MOLT -->
   <div id="molt" class="screen">
     <div class="center" style="margin-bottom:2px">
-      <div style="font-size:46px">🧬</div>
+      <div style="font-size:40px">🧬</div>
       <h2>The Molt Chamber</h2>
       <div class="muted" id="moltSub">Your old shell splits. Choose <b>2</b> new forms.</div>
     </div>
     <div class="moltgrid" id="moltGrid"></div>
+    <button class="expandbtn" id="moltExpand"><span class="arw">⌄</span> <span id="expandLbl">Show full details</span></button>
     <button class="btn" id="moltConfirm" disabled>Choose 2 forms</button>
   </div>
 
@@ -580,8 +616,12 @@ function nextRoom(){
 }
 
 function applyZoneTheme(z){
-  document.body.style.background =
-    `radial-gradient(120% 90% at 50% -10%, ${zoneTint(z)} 0%, var(--bg) 55%)`;
+  const zp=zpal(z);
+  const glow=mix(zp[4],'#0b0910',0.62), top=mix(zp[0],'#0b0910',0.18), bot=mix(zp[1],'#0b0910',0.28);
+  const bg=`radial-gradient(135% 80% at 50% -6%, ${glow} 0%, ${top} 24%, ${bot} 62%, #08060d 100%)`;
+  document.body.style.background=bg;
+  document.documentElement.style.setProperty('--zoneaccent', zp[4]);
+  document.documentElement.style.setProperty('--zonedim', mix(zp[4],'#0b0910',0.5));
 }
 
 function enterRoom(){
@@ -697,6 +737,8 @@ function renderMolt(isStart){
     ? `You break from your egg. Choose your first <b>${need}</b> forms.`
     : `Your old shell splits away. Choose <b>${need}</b> new forms to grow.`;
   const grid=$('#moltGrid'); grid.innerHTML='';
+  grid.classList.remove('expanded');   // start compact each molt
+  const xb=$('#moltExpand'); if(xb){ xb.classList.remove('open'); $('#expandLbl').textContent='Show full details'; }
   G.offer.forEach(id=>{
     const f=FORM[id];
     const owned = G.forms.includes(id);
@@ -740,6 +782,14 @@ function updateMoltBtn(){
   b.disabled = selForms.length!==need;
   b.textContent = selForms.length===need ? 'Molt into these ▸' : `Choose ${need-selForms.length} more`;
 }
+
+$('#moltExpand').onclick=()=>{
+  const grid=$('#moltGrid'), btn=$('#moltExpand');
+  const open=grid.classList.toggle('expanded');
+  btn.classList.toggle('open', open);
+  $('#expandLbl').textContent = open ? 'Collapse' : 'Show full details';
+  sfx.pick();
+};
 
 $('#moltConfirm').onclick=()=>{
   if(selForms.length!==moltNeed()) return;
@@ -825,10 +875,16 @@ function drawEye(cx,cy,r,glow,boss){
   const g=boss?`<circle cx="${cx}" cy="${cy}" r="${r*2.2}" fill="${glow}" opacity=".35"><animate attributeName="opacity" values=".2;.55;.2" dur="1.8s" repeatCount="indefinite"/></circle>`:'';
   return `${g}<circle cx="${cx}" cy="${cy}" r="${r}" fill="#0a0608"/><circle cx="${cx}" cy="${cy}" r="${r*0.62}" fill="${glow}"/><circle cx="${cx-r*0.25}" cy="${cy-r*0.28}" r="${r*0.22}" fill="#fff" opacity=".9"/>`;
 }
-function eyeCluster(n,cx,cy,spread,r,glow,boss){
+function brows(cx,cy,spread,r,col){ // angry V brows above a pair of eyes
+  const y=cy-r-1.5;
+  return `<g stroke="${col}" stroke-width="${Math.max(2,r*0.5)}" stroke-linecap="round">`
+    +`<line x1="${cx-spread-r*0.9}" y1="${y-r*0.5}" x2="${cx-spread+r*0.6}" y2="${y+r*0.3}"/>`
+    +`<line x1="${cx+spread+r*0.9}" y1="${y-r*0.5}" x2="${cx+spread-r*0.6}" y2="${y+r*0.3}"/></g>`;
+}
+function eyeCluster(n,cx,cy,spread,r,glow,boss,fierce){
   let s='';
-  if(n===1){ return drawEye(cx,cy,r,glow,boss); }
-  if(n===2){ return drawEye(cx-spread,cy,r,glow,boss)+drawEye(cx+spread,cy,r,glow,boss); }
+  if(n===1){ s=drawEye(cx,cy,r,glow,boss); if(fierce) s+=brows(cx,cy,spread||r*1.4,r,'#0a0608'); return s; }
+  if(n===2){ s=drawEye(cx-spread,cy,r,glow,boss)+drawEye(cx+spread,cy,r,glow,boss); if(fierce) s+=brows(cx,cy,spread,r,'#0a0608'); return s; }
   // clustered many-eyes (spiders/horrors)
   const pts = n<=4
     ? [[-spread,-2],[spread,-2],[-spread*0.5,r*1.4],[spread*0.5,r*1.4]]
@@ -846,6 +902,8 @@ function drawCreature(m, zone, cx, cy, scale, defs){
   defs.push(`<radialGradient id="${bid}" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="${rim}"/><stop offset=".45" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></radialGradient>`);
   const glow = mix(m.glow?rim:'#ff5a3c', m.pal[0], 0.15);
   const eyeGlow = m.shape==='ghost'? '#bfe0ff' : (m.boss? '#ff5030' : '#ffd24a');
+  const fierce = !!(m.boss || m.arms || m.claws || m.fang || m.horns || m.tail==='sting');
+  const belly = mix(c1,'#fff',0.16);   // lit underside for volume
   let s=`<g transform="translate(${cx} ${cy}) scale(${scale})">`;
   const st=`stroke="${dark}" stroke-width="2.2"`;
 
@@ -896,28 +954,30 @@ function drawCreature(m, zone, cx, cy, scale, defs){
   if(m.shape==='worm'){ const segs=m.segs||4; let body='';
     for(let i=segs-1;i>=0;i--){ const t=i/(segs-1); const bx=-22+ (44*(1-t)); const rr=13-i*1.1; // head at right
       body+=`<ellipse cx="${bx}" cy="${Math.sin(i*1.1)*2}" rx="${rr}" ry="${rr*0.92}" fill="url(#${bid})" ${st}/>`; }
-    s+=body; s+=eyeCluster(m.eyes,20,eyeY,6,eyeR,eyeGlow,m.boss);
+    s+=body; s+=eyeCluster(m.eyes,20,eyeY,6,eyeR,eyeGlow,m.boss,fierce);
     if(m.fang) s+=`<path d="M28,2 l6,7 l-6,-1 Z" fill="${dark}"/>`;
   } else if(m.shape==='serpent'){
     s+=`<path d="M-40,20 C-60,-6 -20,-8 -6,-22 C2,-32 22,-30 30,-16" fill="none" stroke="url(#${bid})" stroke-width="20" stroke-linecap="round"/>
         <path d="M-40,20 C-60,-6 -20,-8 -6,-22 C2,-32 22,-30 30,-16" fill="none" stroke="${dark}" stroke-width="20" stroke-linecap="round" opacity=".18"/>
         <ellipse cx="30" cy="-16" rx="18" ry="14" fill="url(#${bid})" ${st}/>`;
-    s+=eyeCluster(2,30,-20,7,eyeR,eyeGlow,m.boss);
+    s+=eyeCluster(2,30,-20,7,eyeR,eyeGlow,m.boss,fierce);
     if(m.fang) s+=`<path d="M40,-8 l3,9 l-5,-3 Z" fill="#fff"/><path d="M46,-10 l2,8 l-5,-2 Z" fill="#fff"/>`;
   } else if(m.shape==='ghost'){
     s+=`<path d="M0,-30 C24,-30 30,-8 30,10 C30,22 22,20 16,28 C10,20 4,28 0,22 C-4,28 -10,20 -16,28 C-22,20 -30,22 -30,10 C-30,-8 -24,-30 0,-30 Z" fill="url(#${bid})" ${st} opacity=".92">
         <animateTransform attributeName="transform" type="translate" values="0 0;0 -4;0 0" dur="3s" repeatCount="indefinite"/></path>`;
-    s+=eyeCluster(m.eyes,0,-8,10,eyeR+1,eyeGlow,m.boss);
+    s+=eyeCluster(m.eyes,0,-8,10,eyeR+1,eyeGlow,m.boss,fierce);
   } else if(m.shape==='mass'){
     s+=`<path d="M-30,26 C-40,-2 -26,-30 0,-30 C26,-30 40,-2 30,26 Z" fill="url(#${bid})" ${st}/>`;
+    s+=`<ellipse cx="0" cy="14" rx="20" ry="12" fill="${belly}" opacity=".4"/>`;
+    s+=`<path d="M-18,-20 A 30 30 0 0 1 14,-24" fill="none" stroke="${rim}" stroke-width="2.6" stroke-linecap="round" opacity=".5"/>`;
     if(m.bony){ s+=`<g stroke="${mix(c1,'#fff',.3)}" stroke-width="3" opacity=".6"><path d="M-18,-6 h36 M-20,4 h40 M-16,14 h32"/></g>`; }
     if(m.chunky){ s+=`<g fill="${mix(c1,'#fff',.12)}" ${st}><path d="M-26,-8 l-10,-8 l2,12 Z"/><path d="M26,-8 l10,-8 l-2,12 Z"/></g>`; }
     if(m.bubbles){ s+=`<g fill="${mix(c1,'#fff',.2)}" opacity=".7"><circle cx="-14" cy="-14" r="6"/><circle cx="10" cy="-18" r="8"/><circle cx="20" cy="-4" r="5"/></g>`; }
-    s+=eyeCluster(m.eyes,0,-6,10,eyeR+1,eyeGlow,m.boss);
+    s+=eyeCluster(m.eyes,0,-6,10,eyeR+1,eyeGlow,m.boss,fierce);
     if(m.maw) s+=`<path d="M-16,14 Q0,30 16,14 Q0,20 -16,14 Z" fill="#160608"/><g fill="#fff"><path d="M-12,15 l3,7 l3,-6 Z"/><path d="M0,17 l3,7 l3,-7 Z"/><path d="M10,15 l3,6 l2,-6 Z"/></g>`;
   } else if(m.shape==='newt'){
     s+=`<ellipse cx="0" cy="2" rx="26" ry="15" fill="url(#${bid})" ${st}/><ellipse cx="22" cy="-4" rx="12" ry="10" fill="url(#${bid})" ${st}/>`;
-    s+=eyeCluster(2,26,-8,6,eyeR,eyeGlow,m.boss);
+    s+=eyeCluster(2,26,-8,6,eyeR,eyeGlow,m.boss,fierce);
   } else { // round / dome / oval / squat / wide / small
     let rx=20, ry=18;
     if(m.shape==='oval'){ rx=16; ry=22; }
@@ -926,12 +986,15 @@ function drawCreature(m, zone, cx, cy, scale, defs){
     if(m.shape==='dome'){ rx=22; ry=18; }
     if(m.shape==='small'){ rx=15; ry=14; }
     s+=`<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="url(#${bid})" ${st}/>`;
+    // lit belly + soft top rim-light for volume
+    s+=`<ellipse cx="0" cy="${ry*0.34}" rx="${rx*0.66}" ry="${ry*0.5}" fill="${belly}" opacity=".45"/>`;
+    s+=`<path d="M${-rx*0.7},${-ry*0.55} A ${rx} ${ry} 0 0 1 ${rx*0.55},${-ry*0.72}" fill="none" stroke="${rim}" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>`;
     if(m.shell){ s+=`<path d="M0,-${ry} C ${rx},-${ry} ${rx},${ry*0.2} 0,${ry*0.2} C -${rx},${ry*0.2} -${rx},-${ry} 0,-${ry} Z" fill="${mix(c1,'#000',.12)}" opacity=".5"/><line x1="0" y1="-${ry}" x2="0" y2="${ry*0.2}" stroke="${dark}" stroke-width="2"/>`; }
     if(m.stripes){ s+=`<g stroke="${dark}" stroke-width="4" opacity=".8"><line x1="-14" y1="6" x2="14" y2="6"/><line x1="-13" y1="14" x2="13" y2="14"/></g>`; }
     if(m.mark==='glass'){ s+=`<path d="M-5,-2 l10,0 l-5,7 l5,7 l-10,0 l5,-7 Z" fill="#e04a4a"/>`; }
     const er = m.bigEye? eyeR+2 : eyeR;
     const ey = m.shape==='oval'? -10 : -5;
-    s+=eyeCluster(m.eyes, 0, ey, m.eyes>2?8:eyeSpread, er, eyeGlow, m.boss);
+    s+=eyeCluster(m.eyes, 0, ey, m.eyes>2?8:eyeSpread, er, eyeGlow, m.boss, fierce);
     if(m.fang) s+=`<path d="M-6,${ry-4} l3,7 l3,-6 Z" fill="#fff"/><path d="M4,${ry-5} l3,7 l2,-6 Z" fill="#fff"/>`;
   }
 
@@ -982,13 +1045,32 @@ function sceneSVG(zone, defs){
   return s;
 }
 
-function enemyArtSVG(e, zone){
-  const m=e.mon||MON.grub; const isBoss=!!m.boss;
-  const defs=[]; const scale=(isBoss? 1.55 : 1.12)*(m.sz||1);
-  const scene=sceneSVG(zone, defs);
-  const shadow=`<ellipse cx="120" cy="150" rx="${isBoss?66:48}" ry="${isBoss?15:12}" fill="#000" opacity=".38"/>`;
-  const body=drawCreature(m, zone, 120, isBoss?96:100, scale, defs);
-  return `<svg class="monsvg${isBoss?' boss':''}" viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"><defs>${defs.join('')}</defs>${scene}${shadow}${body}</svg>`;
+// layer 1: the zone backdrop (fills the arena)
+function sceneArtSVG(zone){
+  const defs=[]; const scene=sceneSVG(zone, defs);
+  return `<svg viewBox="0 0 240 180" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs>${defs.join('')}</defs>${scene}</svg>`;
+}
+// layer 2: the enemy creature alone, centred (so it can lunge without moving the scene)
+function creatureArtSVG(m, zone, isBoss){
+  const defs=[]; const scale=(isBoss? 1.5 : 1.15)*(m.sz||1);
+  const body=drawCreature(m, zone, 0, 6, scale, defs);
+  return `<svg class="monsvg${isBoss?' boss':''}" viewBox="-70 -70 140 140" xmlns="http://www.w3.org/2000/svg"><defs>${defs.join('')}</defs><ellipse cx="0" cy="48" rx="${isBoss?46:36}" ry="9" fill="#000" opacity=".33"/>${body}</svg>`;
+}
+// layer 3: your hero — a small molting beast that lunges in to attack, facing right
+function heroArtSVG(){
+  const c1='#b3a6ff', c2='#5b4bc4', dark='#241a52', rim='#e6e0ff';
+  return `<svg class="monsvg hero" viewBox="-50 -50 100 100" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="hb" cx="38%" cy="28%" r="82%"><stop offset="0" stop-color="${rim}"/><stop offset=".5" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></radialGradient></defs>
+    <ellipse cx="0" cy="34" rx="24" ry="7" fill="#000" opacity=".32"/>
+    <g stroke="${dark}" stroke-width="3.5" stroke-linecap="round"><path d="M-8,18 L-13,30"/><path d="M4,20 L2,32"/></g>
+    <path d="M14,10 q14,-1 19,7" fill="none" stroke="${dark}" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M14,10 l10,-2 l-3,7 Z" fill="${c1}" stroke="${dark}" stroke-width="1.5"/>
+    <ellipse cx="0" cy="2" rx="21" ry="19" fill="url(#hb)" stroke="${dark}" stroke-width="2.4"/>
+    <path d="M-2,-16 a21,19 0 0 1 2,37" fill="#fff" opacity=".08"/>
+    <path d="M-2,-15 q-4,-11 -11,-13" fill="none" stroke="${dark}" stroke-width="2"/><circle cx="-13" cy="-29" r="2.6" fill="${c1}"/>
+    <g><circle cx="7" cy="-3" r="6.2" fill="#0a0710"/><circle cx="8" cy="-3" r="3.6" fill="#fff"/><circle cx="9.4" cy="-4.2" r="1.4" fill="#0a0710"/>
+       <circle cx="19" cy="-3" r="5" fill="#0a0710"/><circle cx="20" cy="-3" r="3" fill="#fff"/><circle cx="21" cy="-4" r="1.2" fill="#0a0710"/></g>
+  </svg>`;
 }
 
 /* ============================ COMBAT ============================ */
@@ -997,9 +1079,11 @@ function startCombat(type){
   if(type==='B'){ tmpl=BOSSES[Math.min(G.zone-1, BOSSES.length-1)]; isBoss=true; }
   else if(type==='e'){ tmpl=pick(Object.values(ELITES)); isBoss=true; }
   else { tmpl=BEASTS[pick(zonePool(G.zone))]; }
-  // difficulty ramps hard with depth: HP faster than Power so fights get longer AND meaner
-  const hpScale =1 + 0.44*(G.zone-1);
-  const powScale=1 + 0.30*(G.zone-1);
+  // difficulty ramps hard with depth. Power ACCELERATES (quadratic term) so it
+  // keeps pace with the player's compounding build — no more unkillable late game.
+  const z=G.zone-1;
+  const hpScale = 1 + 0.44*z;
+  const powScale= 1 + 0.40*z + 0.035*z*z;
   const eHp=Math.round(tmpl.hp*hpScale*(type==='e'?1.2:1));
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
@@ -1063,8 +1147,13 @@ function renderCombat(){
   $('#cRoomChip').textContent=(e.boss?'⚠ Boss':'Room '+(G.room+1));
   $('#enemyName').textContent=e.name;
   $('#enemySub').textContent=e.sub||'';
-  const artEl=$('#enemyArt');
-  if(artEl.dataset.kind!==e.kind){ artEl.innerHTML=enemyArtSVG(e, G.zone); artEl.dataset.kind=e.kind; }
+  // arena layers (re-render only when they change, so animations don't restart)
+  const sceneEl=$('#sceneArt');
+  if(sceneEl && sceneEl.dataset.zone!==String(G.zone)){ sceneEl.innerHTML=sceneArtSVG(G.zone); sceneEl.dataset.zone=String(G.zone); }
+  const monEl=$('#enemyMon');
+  if(monEl && monEl.dataset.kind!==e.kind){ monEl.innerHTML=creatureArtSVG(e.mon||MON.grub, G.zone, !!e.boss); monEl.dataset.kind=e.kind; monEl.classList.toggle('boss', !!e.boss); }
+  const heroEl=$('#heroMon');
+  if(heroEl && !heroEl.dataset.done){ heroEl.innerHTML=heroArtSVG(); heroEl.dataset.done='1'; }
   const ep=clamp(e.hp/e.maxHp*100,0,100);
   $('#enemyHpBar').style.width=ep+'%';
   $('#enemyHpTxt').textContent=Math.max(0,e.hp)+' / '+e.maxHp;
@@ -1116,7 +1205,11 @@ function floaty(text,color,onEnemy){
   box.style.position='relative'; box.appendChild(f);
   setTimeout(()=>f.remove(),1000);
 }
-function shakeEnemy(){ const a=$('#enemyArt'); a.classList.remove('hit'); void a.offsetWidth; a.classList.add('hit'); }
+function reanim(el, cls, dur){ if(!el) return; el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(()=>el&&el.classList.remove(cls), dur); }
+function shakeEnemy(){ reanim($('#enemyMon'),'hit',320); }
+function heroLunge(){ reanim($('#heroMon'),'lunge',460); }
+function enemyLunge(){ reanim($('#enemyMon'),'elunge',460); }
+function heroHurt(){ reanim($('#heroMon'),'hurt',320); }
 function flashRed(){ const f=$('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
 
 // ---- action handling ----
@@ -1130,7 +1223,7 @@ function doAction(act){
   busy=true;
   const e=G.enemy;
   try{
-    if(act==='strike') playerStrike();
+    if(act==='strike'){ heroLunge(); playerStrike(); }
     else if(act==='guard') playerGuard();
     else if(act==='dodge') playerDodge();
     renderCombat();
@@ -1233,6 +1326,7 @@ function enemyTurn(act){
   if(it.type==='defend'){ logMsg(`<b>${e.name}</b> braces itself.`); G.guarding=G.dodging=false; return; }
   if(it.type==='charge'){ logMsg(`<b>${e.name}</b> coils, gathering force…`); G.guarding=G.dodging=false; return; }
 
+  enemyLunge();          // the beast surges toward you
   let raw=it.dmg;
   // DODGE
   if(act==='dodge'){
@@ -1255,10 +1349,13 @@ function enemyTurn(act){
   let armor=pArm();
   if(act==='guard') armor=armor*2 + 2;   // guarding roughly doubles armor + a bit
   let dmg=Math.max(0, raw - armor);
+  // Chip damage: if you DIDN'T actively defend, a hit always lands at least 18%
+  // of its raw value through armor — pure-tank builds can no longer be immortal.
+  if(act!=='guard') dmg=Math.max(dmg, Math.ceil(raw*0.18));
   // block absorbs
   if(G.block>0 && dmg>0){ const ab=Math.min(G.block,dmg); G.block-=ab; dmg-=ab; }
   if(dmg>0){
-    G.hp-=dmg; sfx.hurt(); flashRed(); floaty('-'+dmg,'#ff8080',false);
+    G.hp-=dmg; sfx.hurt(); flashRed(); heroHurt(); floaty('-'+dmg,'#ff8080',false);
     const tag = it.type==='unleash'?'☄️':(it.type==='heavy'?'💥':'⚔️');
     logMsg(`${tag} <b>${e.name}</b> hits you for <b>${dmg}</b>.`,'bad');
     // vampiric enemy heals off you
