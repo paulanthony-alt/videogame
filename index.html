@@ -772,29 +772,39 @@ function treasureRoom(){
 
 /* ============================ MOLT ============================ */
 // Deeper zones tilt the rarity odds toward the good stuff.
-function rarityWeights(zone){
+function rarityWeights(zone, boss){
   const t=Math.min(1,(zone-1)/9);
-  return {
+  const w={
     common:    Math.max(8, 100 - 74*t),
     uncommon:  38 + 18*t,
     rare:      13 + 27*t,
     epic:      3.5 + 15*t,
     legendary: 0.25 + 2.2*t,   // legendaries are rare — a real prize
   };
+  // A boss's essence is a real prize: skew hard toward the good stuff.
+  if(boss){
+    w.common    *= 0.22;
+    w.uncommon  *= 0.65;
+    w.rare      *= 1.9;
+    w.epic      *= 2.8;
+    w.legendary *= 3.4;
+  }
+  return w;
 }
-function rollRarity(zone){
-  const w=rarityWeights(zone);
+function rollRarity(zone, boss){
+  const w=rarityWeights(zone, boss);
   let tot=RARITY_ORDER.reduce((s,k)=>s+w[k],0), r=Math.random()*tot;
   for(const k of RARITY_ORDER){ if((r-=w[k])<=0) return k; }
   return 'common';
 }
-function openMolt(isStart){
+function openMolt(isStart, bossReward){
   G.pendingStart = !!isStart;
+  G.bossReward = !!bossReward;
   const owned=new Set(G.forms);
   const offer=[];
   let guard=0;
   while(offer.length<4 && guard++<300){
-    const rar=rollRarity(G.zone);
+    const rar=rollRarity(G.zone, bossReward);
     // prefer un-owned of this rarity; fall back to owned so they stack…
     let pool=FORMS.filter(f=>f.rarity===rar && !owned.has(f.id) && !offer.some(o=>o.id===f.id));
     // …EXCEPT legendaries never stack — only ever offered if you don't own one.
@@ -822,7 +832,9 @@ function renderMolt(isStart){
   const need=moltNeed();
   $('#moltSub').innerHTML = isStart
     ? `You break from your egg. Choose your first <b>${need}</b> forms.`
-    : `Your old shell splits away. Choose <b>${need}</b> new forms to grow.`;
+    : G.bossReward
+      ? `👑 You feast on the fallen boss — its essence surges through you. <b>Rarer forms await.</b> Choose <b>${need}</b>.`
+      : `Your old shell splits away. Choose <b>${need}</b> new forms to grow.`;
   const grid=$('#moltGrid'); grid.innerHTML='';
   const order=G.offer.slice().sort((a,b)=>RARITY_ORDER.indexOf(FORM[b].rarity)-RARITY_ORDER.indexOf(FORM[a].rarity));
   order.forEach((id)=>{
@@ -877,7 +889,7 @@ $('#moltConfirm').onclick=()=>{
   if(gain>0) G.hp+=gain;          // new max HP is granted as healing
   else G.hp=clamp(G.hp,0,pMax());
   G.moltsDone++;
-  G.offer=null; selForms=[];
+  G.offer=null; selForms=[]; G.bossReward=false;
   sfx.molt();
   save();
   if(G.pendingStart){ G.pendingStart=false; enterRoom(); }
@@ -1353,7 +1365,7 @@ function startCombat(type){
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
     name:tmpl.name, sub:tmpl.sub||'', kind:tmpl.kind, mon:monFor(tmpl), hp:eHp, maxHp:eHp, power:ePow,
-    armor:tmpl.armored||0, boss:!!tmpl.boss||isBoss, dodgey:!!tmpl.dodgey,
+    armor:tmpl.armored||0, boss:!!tmpl.boss||isBoss, zoneBoss:type==='B', dodgey:!!tmpl.dodgey,
     toxic:!!tmpl.toxic, vampiric:!!tmpl.vampiric, enrage:!!tmpl.enrage,
     eRegen:0, eThorns:0, eDodge:0, molts:[],
     bleed:0, venom:0, intent:null, charging:false,
@@ -1731,9 +1743,15 @@ function endCombat(won){
   if(won){
     sfx.win();
     G.kills++;
+    const wasZoneBoss = !!(G.enemy && G.enemy.zoneBoss);
     // render the killing blow with the enemy still on screen, THEN clear it
-    logMsg(`✔️ The beast falls still.`,'good'); renderCombat();
-    setTimeout(()=>{ G.enemy=null; save(); busy=false; nextRoom(); }, 650);
+    logMsg(wasZoneBoss?`👑 The boss falls. Its essence is yours to take.`:`✔️ The beast falls still.`,'good'); renderCombat();
+    setTimeout(()=>{
+      G.enemy=null; save(); busy=false;
+      // Every boss you fell offers a molt — with the odds tilted toward rarer forms.
+      if(wasZoneBoss) openMolt(false, true);
+      else nextRoom();
+    }, 650);
   }else{
     sfx.lose();
     renderCombat();
