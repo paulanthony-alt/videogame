@@ -180,6 +180,10 @@
   .form .tick{position:absolute; top:8px; right:8px; width:24px; height:24px; border-radius:50%;
     background:var(--rc,var(--pick)); color:#0d0b14; display:none; align-items:center; justify-content:center; font-weight:900; font-size:14px; z-index:2}
   .form.sel .tick{display:flex}
+  /* shed screen: tap a form to release it (over capacity) */
+  .shedform.shedding{opacity:.5; box-shadow:0 0 0 3px #e0556b, 0 0 16px -3px #e0556b; filter:grayscale(.45)}
+  .shedform .shedtick{background:#e0556b; color:#fff}
+  .shedform.shedding .tick{display:flex}
   .mods{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
   .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
   .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
@@ -279,6 +283,7 @@
          <b style="color:#4aa3f0">Rare</b>,
          <b style="color:#c07bf5">Epic</b> and
          <b style="color:#f5a742">Legendary</b>. The deeper you descend, the better the odds of the good stuff. Duplicate forms <b>stack</b> — a second copy doubles the effect.</p>
+      <p>Your shell only holds <b>15 forms</b>. Once it's full, molting means <b>shedding</b> — you choose which forms to release to make room. Every molt stays a real trade.</p>
       <p class="muted">Each zone is deadlier than the last: tougher beasts, poison, enrage, and bosses that can end a run. Pick forms that cover your weaknesses.</p>
       <hr class="sep">
       <p>Fall in battle and the run ends — but you keep how deep you got. Then you crawl again.</p>
@@ -579,6 +584,9 @@ let G = null;               // current run
 const SAVE_KEY='molt_save_v1', BEST_KEY='molt_best_v1';
 let muted = localStorage.getItem('molt_mute')==='1';
 let selForms = [];          // molt selection
+const FORM_CAP = 15;        // a shell can only hold so many forms — no infinite stacking
+let shedSel = [];           // indices (into shedList) chosen to release when over capacity
+let shedList = null;        // current forms, rarity-sorted, shown on the shed screen
 let busy = false;           // lock during animations
 let formsOpen = false;      // is the collected-forms tray expanded?
 
@@ -882,6 +890,7 @@ function updateMoltBtn(){
 }
 
 $('#moltConfirm').onclick=()=>{
+  if(G.pendingShed){ doShed(); return; }          // second phase: releasing forms
   if(selForms.length!==moltNeed()) return;
   const before=pMax();
   selForms.forEach(id=>{ G.forms.push(id); });   // always add (duplicates stack)
@@ -892,9 +901,75 @@ $('#moltConfirm').onclick=()=>{
   G.offer=null; selForms=[]; G.bossReward=false;
   sfx.molt();
   save();
+  if(G.forms.length>FORM_CAP){ enterShed(); return; }   // over capacity — must shed first
+  advanceAfterMolt();
+};
+function advanceAfterMolt(){
   if(G.pendingStart){ G.pendingStart=false; enterRoom(); }
   else nextRoom();
-};
+}
+// rough "keep-worthiness" of a form: rarity first, then stat weight + a special bonus
+function formValue(id){ const f=FORM[id];
+  let v=RARITY_ORDER.indexOf(f.rarity)*10;
+  for(const val of Object.values(f.mods)) v+=Math.abs(val)*0.4;
+  if(f.passive) v+=6;
+  return v;
+}
+
+/* ---- Capacity: your shell can only hold FORM_CAP forms; shed the rest ---- */
+function enterShed(){
+  G.pendingShed=true; shedSel=[];
+  shedList=G.forms.slice().sort((a,b)=>RARITY_ORDER.indexOf(FORM[b].rarity)-RARITY_ORDER.indexOf(FORM[a].rarity));
+  save();
+  renderShed(); show('molt');
+}
+function renderShed(){
+  if(!shedList) shedList=G.forms.slice().sort((a,b)=>RARITY_ORDER.indexOf(FORM[b].rarity)-RARITY_ORDER.indexOf(FORM[a].rarity));
+  const over=G.forms.length-FORM_CAP;
+  $('#moltSub').innerHTML = `🐚 Your shell holds only <b>${FORM_CAP}</b> forms. Release <b>${over}</b> to finish molting. <span class="muted">Tap forms to shed them.</span>`;
+  const grid=$('#moltGrid'); grid.innerHTML='';
+  shedList.forEach((id,idx)=>{
+    const f=FORM[id]; const rc=RARITY[f.rarity].color;
+    const el=document.createElement('div'); el.className='form shedform r-'+f.rarity; el.dataset.idx=idx;
+    el.style.setProperty('--rc', rc);
+    const mods=[];
+    for(const[k,v]of Object.entries(f.mods)){ const nm={power:'PWR',armor:'ARM',speed:'SPD',maxHp:'HP'}[k];
+      mods.push(`<span class="mod ${v>0?'up':'dn'}">${v>0?'+':''}${v} ${nm}</span>`); }
+    if(f.passive) mods.push(`<span class="mod sp">✦ special</span>`);
+    el.innerHTML=`<div class="tick shedtick">✕</div>
+      <div class="rlabel" style="color:${rc}">${RARITY[f.rarity].name}</div>
+      <div class="fi">${f.icon}</div>
+      <h3>${f.name}</h3><div class="mods">${mods.join('')}</div>`;
+    el.onclick=()=>toggleShed(idx,el);
+    if(shedSel.includes(idx)) el.classList.add('shedding');
+    grid.appendChild(el);
+  });
+  updateShedBtn();
+}
+function toggleShed(idx,el){
+  const over=G.forms.length-FORM_CAP;
+  const i=shedSel.indexOf(idx);
+  if(i>=0){ shedSel.splice(i,1); el.classList.remove('shedding'); }
+  else{
+    if(shedSel.length>=over){ const old=shedSel.shift(); const oe=$(`.shedform[data-idx="${old}"]`); if(oe) oe.classList.remove('shedding'); }
+    shedSel.push(idx); el.classList.add('shedding'); sfx.pick();
+  }
+  updateShedBtn();
+}
+function updateShedBtn(){
+  const b=$('#moltConfirm'); const over=G.forms.length-FORM_CAP;
+  b.disabled = shedSel.length!==over;
+  b.textContent = shedSel.length===over ? 'Shed & molt ▸' : `Release ${over-shedSel.length} more`;
+}
+function doShed(){
+  const keep = shedList.filter((_,i)=>!shedSel.includes(i));
+  G.forms = keep;
+  G.hp=clamp(G.hp,0,pMax());
+  G.pendingShed=false; shedSel=[]; shedList=null;
+  sfx.molt();
+  save();
+  advanceAfterMolt();
+}
 
 /* ============================ CREATURE ART ============================ */
 // Everything here is drawn as inline SVG — no external images (CSP-safe), fully
@@ -1807,9 +1882,17 @@ function resumeRun(){
   if(s.base) Object.assign(BASE, s.base);
   G=s;
   if(G.phoenixUsed===undefined) G.phoenixUsed=false;   // migrate older saves
+  // migrate over-capacity saves (from before the shell cap): keep the strongest FORM_CAP
+  if(G.forms && G.forms.length>FORM_CAP && !G.pendingShed){
+    G.forms.sort((a,b)=>formValue(b)-formValue(a));
+    G.forms=G.forms.slice(0,FORM_CAP);
+    G.hp=clamp(G.hp,0,pMax());
+    save();
+  }
   applyZoneTheme(G.zone);
   const scr=G.screen||'map';
-  if(scr==='combat' && G.enemy){ show('combat'); renderCombat(); busy=false; }
+  if(G.pendingShed){ shedList=null; shedSel=[]; renderShed(); show('molt'); busy=false; }
+  else if(scr==='combat' && G.enemy){ show('combat'); renderCombat(); busy=false; }
   else if(scr==='molt' && G.offer){ selForms=[]; renderMolt(!!G.pendingStart); show('molt'); }
   else { enterRoom(); }
 }
