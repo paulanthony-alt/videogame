@@ -23,9 +23,12 @@
     --shadow:0 10px 30px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%}
-  body{
-    background:radial-gradient(120% 90% at 50% -10%, #201a38 0%, var(--bg) 55%);
+  /* dark base on the root element so the safe-area strips (e.g. the home
+     indicator) never show white behind the app */
+  html{margin:0; min-height:100%; background:#0b0910}
+  body{margin:0; min-height:100dvh;
+    background:radial-gradient(120% 90% at 50% -10%, #201a38 0%, var(--bg) 55%) no-repeat;
+    background-color:var(--bg);
     color:var(--ink); font-family:'Trebuchet MS',Verdana,system-ui,sans-serif;
     overflow:hidden; user-select:none; -webkit-user-select:none;
     display:flex; align-items:center; justify-content:center;
@@ -657,6 +660,7 @@ function applyZoneTheme(z){
   const glow=mix(acc,'#0b0910',0.58), top=mix(zp[0],'#0b0910',0.08), bot=mix(zp[1],'#07050c',0.16);
   document.body.style.background=`radial-gradient(150% 90% at 50% -8%, ${glow} 0%, ${top} 26%, ${bot} 66%, #06040b 100%)`;
   const r=document.documentElement.style;
+  r.background='#06040b';                 // safe-area strips match the zone's dark base
   r.setProperty('--zoneaccent', acc);
   r.setProperty('--zonedim', mix(acc,'#0b0910',0.5));
   r.setProperty('--panel',  rgba(mix('#1b1730', acc, 0.16), 0.72));
@@ -1669,7 +1673,7 @@ $$('[data-back]').forEach(b=>b.onclick=()=>show('title'));
 $('#overAgain').onclick=()=>{ resetBase(); newRun(); };
 $('#overMenu').onclick=()=>{ resetTheme(); refreshTitle(); show('title'); };
 $('#mapMenu').onclick=()=>{ save(); refreshTitle(); show('title'); };
-function resetTheme(){ document.body.style.background='';
+function resetTheme(){ document.body.style.background=''; document.documentElement.style.background='';
   ['--panel','--panel2','--line','--zoneaccent','--zonedim'].forEach(p=>document.documentElement.style.removeProperty(p)); }
 $('#muteBtn').onclick=()=>{ muted=!muted; localStorage.setItem('molt_mute',muted?'1':'0'); updateMute(); if(!muted) sfx.pick(); };
 
