@@ -122,6 +122,11 @@
   .intent.calm{color:var(--xp)}
   .dots{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:8px; min-height:20px}
   .dot{font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:var(--panel2); border:1px solid var(--line)}
+  .dot.molt{background:rgba(245,167,66,.12); border-color:rgba(245,167,66,.45)}
+  /* clear level readout */
+  .chip.lvl{background:linear-gradient(180deg, rgba(124,108,240,.28), rgba(124,108,240,.12)); border-color:var(--zoneaccent); color:#fff}
+  .chip.lvl b{font-size:15px}
+  .bgname{font-size:12px; font-weight:700; color:var(--dim); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0 6px}
 
   .log{flex:1; min-height:40px; overflow-y:auto; margin:12px 0; padding:0 2px; display:flex; flex-direction:column-reverse}
   .logline{font-size:13.5px; color:var(--dim); padding:3px 0; border-bottom:1px dashed #ffffff10}
@@ -188,6 +193,15 @@
   .flash{position:absolute; inset:0; background:var(--danger); opacity:0; pointer-events:none; mix-blend-mode:screen}
   .flash.go{animation:flash .3s}
   @keyframes flash{0%{opacity:.28}100%{opacity:0}}
+  /* a stolen molt icon flying from you up to the enemy */
+  .stealfx{position:absolute; left:50%; bottom:30%; font-size:40px; z-index:40; pointer-events:none;
+    filter:drop-shadow(0 0 10px #ff5a6a); animation:stealK .92s cubic-bezier(.5,-0.25,.4,1) forwards}
+  @keyframes stealK{
+    0%{ bottom:30%; opacity:0; transform:translate(-50%,10px) scale(.4) rotate(0deg)}
+    18%{opacity:1; transform:translate(-50%,0) scale(1.35) rotate(20deg)}
+    100%{ bottom:74%; opacity:0; transform:translate(-50%,0) scale(.55) rotate(420deg)}
+  }
+  @media (prefers-reduced-motion:reduce){ .stealfx{animation-duration:.4s} }
 
   .pill{display:inline-block; background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 11px; font-size:12px; font-weight:700; margin:3px 3px 0 0}
   .big{font-size:44px; font-weight:900}
@@ -276,8 +290,8 @@
   <div id="map" class="screen">
     <div class="toprow">
       <button class="iconbtn" id="mapMenu">☰</button>
-      <div class="chip" id="zoneChip">Zone 1</div>
-      <div class="grow"></div>
+      <div class="chip lvl" id="zoneChip">LVL 1</div>
+      <div class="bgname grow" id="mBgName"></div>
       <div class="chip" id="hpChip">❤️ 30/30</div>
     </div>
     <div class="maptrack" id="maptrack"></div>
@@ -288,8 +302,8 @@
   <div id="combat" class="screen">
     <div class="flash" id="flash"></div>
     <div class="toprow">
-      <div class="chip" id="cZoneChip">Zone 1</div>
-      <div class="grow"></div>
+      <div class="chip lvl" id="cZoneChip">LVL 1</div>
+      <div class="bgname grow" id="cBgName"></div>
       <div class="chip" id="cRoomChip">Room 1</div>
     </div>
     <div class="enemybox">
@@ -384,14 +398,14 @@ const FORMS = [
   F('common','fatres','🫧','Fat Reserve',{maxHp:8},null,'Stored energy. +8 Max HP.'),
   F('common','jfang','🗡️','Jagged Fang',{power:3,maxHp:-4},null,'Sharper, but it costs blood.'),
   F('common','husk','🪵','Dry Husk',{armor:2,speed:-4},null,'Stiff old plating.'),
-  F('common','edge','🪒','Serrated Edge',{power:2},'bleed','Strikes cause Bleed. Stacks.'),
-  F('common','sacv','🧪','Toxic Sac',{power:1,speed:2},'venom','Adds Venom on Strike. Stacks.'),
-  F('common','hooks','🪝','Barbed Hooks',{power:1},'thorns','Attackers take Thorns. Stacks.'),
-  F('common','bark','🌿','Living Bark',{maxHp:6},'regen','Regenerate each turn. Stacks.'),
-  F('common','leechb','🫀','Leech Bite',{power:1},'lifesteal','Heal on Strike. Stacks.'),
-  F('common','dying','💫','Dying Light',{power:2},'frenzy','+Power while low. Stacks.'),
-  F('common','scar','🩹','Scar Tissue',{maxHp:6},'tough','+Armor while low. Stacks.'),
-  F('common','fumes','☁️','Rot Fumes',{speed:4},'venom','Adds Venom. Stacks.'),
+  F('common','edge','🪒','Serrated Edge',{power:3},null,'A keen cutting edge. +3 Power.'),
+  F('common','sacv','🧫','Swollen Gland',{maxHp:6,power:1},null,'A bulging gland.'),
+  F('common','hooks','🪝','Barbed Hooks',{power:2,armor:1},null,'Grappling barbs.'),
+  F('common','bark','🌿','Living Bark',{maxHp:10},null,'Thick bark. +10 Max HP.'),
+  F('common','leechb','🫀','Extra Heart',{maxHp:8},null,'A spare heart. +8 Max HP.'),
+  F('common','dying','💫','Frantic Nerve',{speed:10,power:1},null,'Jittery reflexes.'),
+  F('common','scar','🩹','Scar Tissue',{maxHp:8,armor:1},null,'Toughened scars.'),
+  F('common','fumes','☁️','Musk Gland',{speed:6,maxHp:2},null,'A pungent haze.'),
   F('common','feather','🪶','Feather Down',{speed:16,power:-2},null,'Light and evasive.'),
   F('common','nimble','🐜','Nimble Joints',{speed:14,power:1,maxHp:-4},null,'Quick and stinging.'),
   F('common','ox','🐂','Ox Frame',{maxHp:16,power:1,speed:-6},null,'Sturdy and strong. Slow.'),
@@ -407,16 +421,16 @@ const FORMS = [
   F('common','downy','🧶','Downy Fluff',{maxHp:8},null,'Insulating fuzz. +8 HP.'),
   F('common','prybar','🪛','Prybar Claw',{power:2,armor:1,speed:-2},null,'Leverage over finesse.'),
   F('common','vein','🩻','Bulging Vein',{maxHp:6,power:1},null,'Pumping blood.'),
-  F('common','stinger','💉','Fine Stinger',{power:1},'venom','A needle tip. Adds Venom. Stacks.'),
+  F('common','stinger','💉','Fine Stinger',{power:2,speed:2},null,'A sharp point.'),
   F('common','shard','🔹','Ice Shard',{power:2,speed:2},null,'A cold splinter.'),
   F('common','pelt','🧥','Matted Pelt',{maxHp:6,armor:1,speed:-2},null,'Warm and tough.'),
   F('common','snapper','🦀','Snapper Claw',{power:3,maxHp:-2},null,'A quick pinch.'),
   F('common','hock','🦗','Spring Hock',{speed:12,power:-1},null,'A leaping getaway.'),
   F('common','chip','🐚','Shell Chip',{armor:1,maxHp:2},null,'A scrap of shell.'),
-  F('common','wheat','🌾','Wheat Barb',{power:1},'bleed','A cut that bleeds. Stacks.'),
+  F('common','wheat','🌾','Chaff Spur',{power:2},null,'A dry barb. +2 Power.'),
   F('common','glow','🔆','Glow Cells',{maxHp:4,speed:4},null,'Faint bioluminescence.'),
-  F('common','crest','🐓','Bristle Crest',{armor:1,power:1},'thorns','Bristles bite back. Stacks.'),
-  F('common','gill','💧','Filter Gills',{maxHp:6,speed:2},'regen','Steady breathing mends you. Stacks.'),
+  F('common','crest','🐓','Bristle Crest',{armor:2},null,'Stiff bristles. +2 Armor.'),
+  F('common','gill','💧','Filter Gills',{maxHp:8,speed:2},null,'Efficient breathing.'),
   F('common','knuckle','👊','Knuckle Spur',{power:2},null,'A bony fist. +2 Power.'),
 
   /* ---------------- UNCOMMON — a clear identity ---------------- */
@@ -699,7 +713,8 @@ function enterRoom(){
 
 /* ============================ MAP / EVENT SCREEN ============================ */
 function renderMapHeader(){
-  $('#zoneChip').textContent = 'Z'+G.zone+' · '+zoneName(G.zone);
+  $('#zoneChip').innerHTML = 'LVL <b>'+G.zone+'</b>';
+  $('#mBgName').textContent = zoneName(G.zone);
   $('#hpChip').textContent = '❤️ '+G.hp+'/'+pMax();
   const track=$('#maptrack'); track.innerHTML='';
   const glyph={c:'⚔️',e:'☠️',M:'🧬',T:'💎',R:'🔥',B:'🐉'};
@@ -760,7 +775,7 @@ function rarityWeights(zone){
     uncommon:  38 + 18*t,
     rare:      13 + 27*t,
     epic:      3.5 + 15*t,
-    legendary: 0.8 + 7*t,
+    legendary: 0.25 + 2.2*t,   // legendaries are rare — a real prize
   };
 }
 function rollRarity(zone){
@@ -776,15 +791,18 @@ function openMolt(isStart){
   let guard=0;
   while(offer.length<4 && guard++<300){
     const rar=rollRarity(G.zone);
-    // prefer un-owned of this rarity; fall back to owned (they stack)
+    // prefer un-owned of this rarity; fall back to owned so they stack…
     let pool=FORMS.filter(f=>f.rarity===rar && !owned.has(f.id) && !offer.some(o=>o.id===f.id));
-    if(!pool.length) pool=FORMS.filter(f=>f.rarity===rar && !offer.some(o=>o.id===f.id));
+    // …EXCEPT legendaries never stack — only ever offered if you don't own one.
+    if(!pool.length && rar!=='legendary') pool=FORMS.filter(f=>f.rarity===rar && !offer.some(o=>o.id===f.id));
     if(pool.length) offer.push(pick(pool));
   }
-  // safety net: fill any remaining slots from the whole roster
+  // safety net: fill remaining slots (unowned first, still no legendary dupes)
   if(offer.length<4){
-    const rest=FORMS.filter(f=>!offer.some(o=>o.id===f.id));
-    while(offer.length<4 && rest.length) offer.push(rest.splice(rand(rest.length),1)[0]);
+    const rest=FORMS.filter(f=>!offer.some(o=>o.id===f.id) && !(f.rarity==='legendary' && owned.has(f.id)));
+    const fresh=rest.filter(f=>!owned.has(f.id)), used=rest.filter(f=>owned.has(f.id));
+    const fill=fresh.concat(used);
+    while(offer.length<4 && fill.length) offer.push(fill.splice(rand(fill.length),1)[0]);
   }
   offer.sort((a,b)=>RARITY_ORDER.indexOf(b.rarity)-RARITY_ORDER.indexOf(a.rarity)); // best first
   G.offer=offer.map(f=>f.id);
@@ -1290,6 +1308,29 @@ function heroArtSVG(){
   </svg>`;
 }
 
+/* Enemies molt too. Each mutation makes them nastier; deeper levels grant more. */
+const EMOLTS = [
+  {id:'plated',   icon:'🛡', name:'Plated',      apply:(e,z)=>{ e.armor += 1+Math.floor(z/25); }},
+  {id:'brutish',  icon:'💪', name:'Brutish',     apply:(e)=>{ e.power = Math.round(e.power*1.28); }},
+  {id:'bloated',  icon:'🎈', name:'Bloated',     apply:(e)=>{ e.maxHp = Math.round(e.maxHp*1.4); e.hp=e.maxHp; }},
+  {id:'regen',    icon:'💚', name:'Regenerating', apply:(e)=>{ e.eRegen = Math.max(2,Math.round(e.maxHp*0.05)); }},
+  {id:'spiked',   icon:'🌵', name:'Spiked',      apply:(e)=>{ e.eThorns = Math.max(2,Math.round(e.power*0.35)); }},
+  {id:'venomous', icon:'🧪', name:'Venomous',    apply:(e)=>{ e.toxic=true; }},
+  {id:'vampiric', icon:'🩸', name:'Vampiric',    apply:(e)=>{ e.vampiric=true; }},
+  {id:'enraged',  icon:'💢', name:'Enraged',     apply:(e)=>{ e.enrage=true; }},
+  {id:'swift',    icon:'💨', name:'Swift',       apply:(e)=>{ e.eDodge = 24; }},
+];
+function rollEnemyMolts(e, zone, type){
+  let n = Math.min(3, Math.floor(zone/4));           // regular foes
+  if(type==='e') n = Math.min(4, n+1);               // elites
+  if(e.boss)     n = Math.min(5, n+2);               // bosses are the most mutated
+  const pool=EMOLTS.slice(); e.molts=[];
+  for(let i=0;i<n && pool.length;i++){
+    const m=pool.splice(rand(pool.length),1)[0];
+    m.apply(e, zone); e.molts.push({icon:m.icon,name:m.name});
+  }
+}
+
 /* ============================ COMBAT ============================ */
 function startCombat(type){
   let tmpl, isBoss=false;
@@ -1309,8 +1350,10 @@ function startCombat(type){
     name:tmpl.name, sub:tmpl.sub||'', kind:tmpl.kind, mon:monFor(tmpl), hp:eHp, maxHp:eHp, power:ePow,
     armor:tmpl.armored||0, boss:!!tmpl.boss||isBoss, dodgey:!!tmpl.dodgey,
     toxic:!!tmpl.toxic, vampiric:!!tmpl.vampiric, enrage:!!tmpl.enrage,
+    eRegen:0, eThorns:0, eDodge:0, molts:[],
     bleed:0, venom:0, intent:null, charging:false,
   };
+  rollEnemyMolts(G.enemy, G.zone, type);   // enemies molt into something worse
   G.log=[];
   G.block = 6*countP('shellstart');
   G.rampage = 0;          // War Muscle / Fury power gained this fight
@@ -1321,7 +1364,8 @@ function startCombat(type){
   busy=false;             // every fight starts with input unlocked (never inherit a stale lock)
   formsOpen=false;        // forms tray starts collapsed each fight
   decideIntent();
-  logMsg(`<b>${tmpl.name}</b> — <i>${tmpl.sub||''}</i> — blocks the tunnel!`);
+  const mtxt = G.enemy.molts.length ? ` It has molted: ${G.enemy.molts.map(m=>m.icon+' '+m.name).join(', ')}.` : '';
+  logMsg(`<b>${tmpl.name}</b> — <i>${tmpl.sub||''}</i> — blocks the tunnel!${mtxt}`);
   show('combat');
   renderCombat();
   save();
@@ -1336,6 +1380,8 @@ function decideIntent(){
   }
   const roll=Math.random();
   if(e.boss){
+    // bosses can lunge for one of YOUR molts — telegraphed so you can dodge it
+    if(G.forms.length>0 && Math.random()<0.16){ e.intent={type:'steal'}; return; }
     if(roll<0.28) e.intent={type:'attack', dmg:e.power};
     else if(roll<0.50) e.intent={type:'heavy', dmg:Math.round(e.power*1.8)};
     else if(roll<0.72){ e.intent={type:'charge'}; e.charging=true; }
@@ -1356,6 +1402,7 @@ function intentHtml(){
   else if(it.type==='unleash'){ icon='☄️'; cls+=' warn'; txt=`UNLEASH — <b>${previewDmg(it.dmg)}</b>!`; }
   else if(it.type==='charge'){ icon='🌀'; cls+=' calm'; txt=`Charging… <span class="muted">(vulnerable!)</span>`; }
   else if(it.type==='defend'){ icon='🛡️'; cls+=' calm'; txt=`Bracing — takes half damage`; }
+  else if(it.type==='steal'){ icon='🫳'; cls+=' warn'; txt=`Grasping for a molt — <b>dodge it!</b>`; }
   return `<div class="${cls}">${icon} ${txt}</div>`;
 }
 // how much would actually land through current armor (rough preview)
@@ -1363,8 +1410,9 @@ function previewDmg(raw){ return Math.max(0, raw - pArm()) + ' dmg'; }
 
 function renderCombat(){
   const e=G.enemy;
-  $('#cZoneChip').textContent='Z'+G.zone+' · '+zoneName(G.zone);
-  $('#cRoomChip').textContent=(e.boss?'⚠ Boss':'Room '+(G.room+1));
+  $('#cZoneChip').innerHTML='LVL <b>'+G.zone+'</b>';
+  $('#cBgName').textContent=zoneName(G.zone);
+  $('#cRoomChip').textContent=(e.boss?'⚠ BOSS':'Room '+(G.room+1)+'/'+G.rooms.length);
   $('#enemyName').textContent=e.name;
   $('#enemySub').textContent=e.sub||'';
   // arena layers (re-render only when they change, so animations don't restart)
@@ -1379,10 +1427,15 @@ function renderCombat(){
   $('#enemyHpTxt').textContent=Math.max(0,e.hp)+' / '+e.maxHp;
   $('#intentWrap').innerHTML=intentHtml();
   const dots=[];
-  if(e.armor>0) dots.push(`<span class="dot" style="color:#bcd">🛡 Armor ${e.armor}</span>`);
-  if(e.toxic)    dots.push(`<span class="dot" style="color:#a0e0a0">🧪 Toxic</span>`);
-  if(e.vampiric) dots.push(`<span class="dot" style="color:#ff9db0">🩸 Vampiric</span>`);
-  if(e.enrage)   dots.push(`<span class="dot" style="color:#f0a060">💢 Enraging</span>`);
+  const mchip=(t)=>`<span class="dot molt" style="color:#ffd98a">${t}</span>`;
+  if(e.armor>0) dots.push(mchip('🛡 Armor '+e.armor));
+  if(e.toxic)    dots.push(mchip('🧪 Venomous'));
+  if(e.vampiric) dots.push(mchip('🩸 Vampiric'));
+  if(e.enrage)   dots.push(mchip('💢 Enraged'));
+  if(e.eRegen)   dots.push(mchip('💚 Regenerating'));
+  if(e.eThorns)  dots.push(mchip('🌵 Spiked'));
+  if(e.eDodge)   dots.push(mchip('💨 Swift'));
+  (e.molts||[]).forEach(m=>{ if(m.name==='Plated'||m.name==='Brutish'||m.name==='Bloated') dots.push(mchip(m.icon+' '+m.name)); });
   if(e.bleed>0) dots.push(`<span class="dot" style="color:#ff9db0">🩸 Bleed ${e.bleed}</span>`);
   if(e.venom>0) dots.push(`<span class="dot" style="color:#a0e0a0">☠️ Venom ${e.venom}</span>`);
   if(e.intent.type==='charge') dots.push(`<span class="dot" style="color:#f0c040">✦ Vulnerable</span>`);
@@ -1444,6 +1497,13 @@ function heroLunge(){ reanim($('#heroMon'),'lunge',460); }
 function enemyLunge(){ reanim($('#enemyMon'),'elunge',460); }
 function heroHurt(){ reanim($('#heroMon'),'hurt',320); }
 function flashRed(){ const f=$('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+// a stolen molt flies from you up to the enemy, spinning
+function stealAnim(icon){
+  const host=$('#combat'); if(!host) return;
+  const el=document.createElement('div'); el.className='stealfx'; el.textContent=icon;
+  host.appendChild(el); reanim($('#heroMon'),'hurt',400); shakeEnemy();
+  setTimeout(()=>el.remove(), 950);
+}
 
 // ---- action handling ----
 $('#actions').addEventListener('click',e=>{
@@ -1464,6 +1524,7 @@ function doAction(act){
   }catch(err){ console.error(err); busy=false; return; }
 
   if(e.hp<=0){ endCombat(true); return; }   // endCombat owns the lock from here
+  if(G.hp<=0 && !survive()){ endCombat(false); return; }   // e.g. spike-thorns during your own strike
 
   // enemy resolves (unless defending/charging handled inside)
   setTimeout(()=>{
@@ -1514,6 +1575,10 @@ function dealToEnemy(raw, note){
 
 function playerStrike(){
   const e=G.enemy; const base=pPow();
+  // Swift molt: the enemy can weave aside from your strike entirely
+  if(e.eDodge && Math.random()*100 < e.eDodge){
+    sfx.dodge(); floaty('DODGED','#8fd6ff',true); logMsg(`💨 <b>${e.name}</b> weaves aside from your strike!`,'bad'); return;
+  }
   // execute: bonus vs wounded foes
   let mult=1;
   if(e.hp < e.maxHp*0.3) mult += 0.75*countP('execute');
@@ -1525,6 +1590,8 @@ function playerStrike(){
   }
   G.firstHit=false;
   const dealt=dealToEnemy(dmg);
+  // Spiked molt: the enemy gores you when you hit it
+  if(e.eThorns && dealt>0){ G.hp-=e.eThorns; floaty('-'+e.eThorns,'#ff8080',false); logMsg(`  ↳ its spikes gore you for <b>${e.eThorns}</b>.`,'bad'); }
   if(crit){ sfx.crit(); logMsg(`⚔️ <b>CRITICAL!</b> You rip for <b>${dealt}</b>.`,'crit'); }
   else { sfx.hit(); logMsg(`⚔️ You strike for <b>${dealt}</b>.`); }
   for(let i=0;i<countP('double');i++){ const d2=dealToEnemy(Math.floor(base/2)); if(d2>0) logMsg(`  ↳ extra lash for <b>${d2}</b>.`); }
@@ -1559,6 +1626,21 @@ function enemyTurn(act){
   // no attack on defend / charge
   if(it.type==='defend'){ logMsg(`<b>${e.name}</b> braces itself.`); G.guarding=G.dodging=false; return; }
   if(it.type==='charge'){ logMsg(`<b>${e.name}</b> coils, gathering force…`); G.guarding=G.dodging=false; return; }
+  // boss molt-steal — dodge it or lose a form
+  if(it.type==='steal'){
+    enemyLunge();
+    const dodged = act==='dodge' && Math.random()*100 < dodgeChance();
+    if(dodged || G.forms.length===0){
+      sfx.dodge(); logMsg(`💨 You wrench free — <b>${e.name}</b> grabs nothing!`,'good');
+    } else {
+      const idx=rand(G.forms.length); const id=G.forms.splice(idx,1)[0]; const f=FORM[id];
+      stealAnim(f.icon); sfx.hurt(); flashRed();
+      G.hp=clamp(G.hp,0,pMax());                              // losing a +HP form can lower your max
+      e.hp=Math.min(e.maxHp, e.hp+Math.round(e.maxHp*0.08)); e.power+=Math.max(2,Math.round(e.power*0.06));
+      logMsg(`🫳 <b>${e.name}</b> rips away your <b>${f.name}</b> and devours it!`,'bad');
+    }
+    G.guarding=G.dodging=false; return;
+  }
 
   enemyLunge();          // the beast surges toward you
   let raw=it.dmg;
@@ -1616,6 +1698,8 @@ function endTurnTicks(){
     if(e.venom>0){ dot+=e.venom*(1+countP('venomlord')); }   // Bloated Venom Sac doubles ticks
     if(dot>0){ e.hp-=dot; floaty('-'+dot,'#c0ffc0',true);
       logMsg(`  ☠️ ${e.name} suffers <b>${dot}</b> from your toxins.`,'good'); }
+    // Regenerating molt: the enemy knits its wounds
+    if(e.eRegen && e.hp>0 && e.hp<e.maxHp){ const h=Math.min(e.eRegen,e.maxHp-e.hp); e.hp+=h; if(h>0){ floaty('+'+h,'#7fe3b0',true); logMsg(`  💚 ${e.name} regenerates <b>${h}</b>.`,'bad'); } }
   }
   // your own poison (from toxic enemies) burns, then fades one stack
   if((G.poison||0)>0 && G.hp>0){
