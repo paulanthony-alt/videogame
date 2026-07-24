@@ -564,7 +564,7 @@ function zonePool(z){ return POOLS[Math.min(z-1, POOLS.length-1)]; }
 function buildRooms(zone){
   const r=['c','c','M','c','T','c','e','M','R'];
   for(let i=0;i<Math.min(zone-1,6);i++) r.splice(4+i,0,'c'); // extra combats deeper
-  if(zone>=3) r.splice(Math.floor(r.length/2),0,'M');        // extra mid-zone molt
+  if(zone>=6) r.splice(Math.floor(r.length/2),0,'M');        // extra mid-zone molt, deep only
   if(zone>=5) r.splice(2,0,'e');                             // extra elite in deep zones
   r.push('B');
   return r;
@@ -1561,12 +1561,19 @@ function survive(){
   return false;
 }
 
-function dealToEnemy(raw, note){
+function dealToEnemy(raw, allowBig){
   const e=G.enemy;
   let dmg=raw;
   if(e.intent && e.intent.type==='charge') dmg=Math.round(dmg*1.5); // vulnerable
   else if(e.intent && e.intent.type==='defend') dmg=Math.round(dmg*0.5); // bracing
   dmg=Math.max(0, dmg - (e.armor||0));
+  // Thicker hides the deeper you go: an ordinary blow can't strip more than a
+  // fraction of a foe's max HP in one tap, so no fight is over in a single click.
+  // Crits and execute finishers (allowBig) are exempt — those stay big moments.
+  if(!allowBig && dmg>0){
+    const cap=Math.max(1, Math.ceil(e.maxHp*(e.boss?0.34:0.5)));
+    if(dmg>cap) dmg=cap;
+  }
   e.hp-=dmg;
   shakeEnemy();
   floaty('-'+dmg, '#ffd36b', true);
@@ -1589,7 +1596,8 @@ function playerStrike(){
     crit=true; dmg=Math.round(dmg*critMult());
   }
   G.firstHit=false;
-  const dealt=dealToEnemy(dmg);
+  // crits and near-dead foes (execute range) bypass the per-hit damage cap
+  const dealt=dealToEnemy(dmg, crit || e.hp < e.maxHp*0.30);
   // Spiked molt: the enemy gores you when you hit it
   if(e.eThorns && dealt>0){ G.hp-=e.eThorns; floaty('-'+e.eThorns,'#ff8080',false); logMsg(`  ↳ its spikes gore you for <b>${e.eThorns}</b>.`,'bad'); }
   if(crit){ sfx.crit(); logMsg(`⚔️ <b>CRITICAL!</b> You rip for <b>${dealt}</b>.`,'crit'); }
