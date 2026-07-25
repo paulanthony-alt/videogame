@@ -184,6 +184,25 @@
   .shedform.shedding{opacity:.5; box-shadow:0 0 0 3px #e0556b, 0 0 16px -3px #e0556b; filter:grayscale(.45)}
   .shedform .shedtick{background:#e0556b; color:#fff}
   .shedform.shedding .tick{display:flex}
+  /* ---- campaign: stars, chapter cards, level pips ---- */
+  .star{color:#3a3550; font-size:15px}
+  .star.on{color:#f5c542; text-shadow:0 0 8px #f5c54277}
+  .starsbig{display:flex; gap:8px; justify-content:center; margin:10px 0 2px; font-size:38px}
+  .starsbig .star{font-size:38px}
+  .chapcard{background:var(--panel); border:1.5px solid var(--line); border-radius:16px; padding:12px 13px; margin-bottom:10px; cursor:pointer; transition:transform .1s, border-color .15s}
+  .chapcard:active{transform:scale(.99)}
+  .chapcard.locked{opacity:.5; cursor:default}
+  .chapcard.cleared{border-color:#f5c54255}
+  .chaptop{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+  .chapname{font-weight:800; font-size:15px}
+  .chapthm{color:var(--dim); font-weight:600; font-size:12px}
+  .chapstars{font-weight:800; color:#f5c542; font-size:13px; white-space:nowrap}
+  .pips{display:flex; gap:5px; flex-wrap:wrap; margin:9px 0 7px}
+  .lvlpip{flex:1 1 0; min-width:24px; text-align:center; font-size:11px; font-weight:800; padding:5px 0; border-radius:8px;
+    background:#ffffff0d; border:1px solid var(--line); color:var(--dim)}
+  .lvlpip.done{background:#f5c5421a; border-color:#f5c54255; color:#f5c542}
+  .lvlpip.cur{border-color:var(--pick2); color:var(--pick2); box-shadow:0 0 0 1px var(--pick2)}
+  .chapfoot{font-size:11.5px; color:var(--dim)}
   .mods{display:flex; gap:5px; flex-wrap:wrap; margin-top:7px}
   .mod{font-size:11px; font-weight:800; padding:2px 7px; border-radius:999px}
   .mod.up{color:#8ff0c8; background:#1c3a2f} .mod.dn{color:#ffb0b0; background:#3a1c22}
@@ -255,11 +274,56 @@
       </div>
     </div>
     <div class="stack">
-      <button class="btn" id="continueBtn" style="display:none">▸ Continue Run</button>
-      <button class="btn" id="newBtn">New Run</button>
+      <button class="btn" id="campaignBtn">⚔️ Campaign</button>
+      <button class="btn" id="endlessBtn">♾️ Endless Crawl</button>
+      <div class="muted" id="campProgress" style="font-size:12px;text-align:center">Campaign · not started</div>
       <div class="btnrow">
         <button class="btn ghost sm grow" id="howBtn">How to play</button>
         <button class="btn ghost sm grow" id="muteBtn">🔊 Sound</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENDLESS INTRO -->
+  <div id="endless" class="screen">
+    <div class="toprow"><button class="iconbtn" data-back>←</button><h2 class="grow">Endless Crawl</h2></div>
+    <div class="card center" style="margin-top:8px">
+      <div style="font-size:40px">♾️</div>
+      <h2>Endless Crawl</h2>
+      <p class="muted" style="line-height:1.5">Descend forever. Each zone is deadlier than the last — see how deep you can get before you fall. <b id="endBest">No crawl yet</b>.</p>
+    </div>
+    <div class="stack" style="margin-top:14px">
+      <button class="btn" id="endContinueBtn" style="display:none">▸ Continue Crawl</button>
+      <button class="btn" id="endNewBtn">New Crawl</button>
+    </div>
+  </div>
+
+  <!-- LEVEL MAP (CAMPAIGN) -->
+  <div id="levelmap" class="screen">
+    <div class="toprow"><button class="iconbtn" data-back>←</button><h2 class="grow">Campaign</h2><div class="chip">⭐ <b id="campTotalStars">0</b></div></div>
+    <div id="chapterList" class="scrollpad grow"></div>
+  </div>
+
+  <!-- LEVEL COMPLETE -->
+  <div id="levelcomplete" class="screen" style="justify-content:center;align-items:center">
+    <div class="card center" style="max-width:340px;width:100%">
+      <div id="lcIcon" style="font-size:48px">⭐</div>
+      <h1 id="lcTitle" style="font-size:26px;margin:4px 0">Level cleared</h1>
+      <div id="lcStars" class="starsbig"></div>
+      <div class="muted" id="lcSub" style="line-height:1.5;margin-top:6px"></div>
+      <div id="lcBtns" class="stack" style="margin-top:16px"></div>
+    </div>
+  </div>
+
+  <!-- CAMPAIGN FAIL -->
+  <div id="campfail" class="screen" style="justify-content:center;align-items:center">
+    <div class="card center" style="max-width:340px;width:100%">
+      <div style="font-size:48px">💀</div>
+      <h1 style="font-size:26px;margin:4px 0">You fell</h1>
+      <div class="muted" id="cfSub" style="line-height:1.5"></div>
+      <div class="stack" style="margin-top:16px">
+        <button class="btn" id="cfRetry">↻ Retry Chapter</button>
+        <button class="btn ghost" id="cfMap">Level Map</button>
       </div>
     </div>
   </div>
@@ -286,7 +350,9 @@
       <p>Your shell only holds <b>15 forms</b>. Once it's full, molting means <b>shedding</b> — you choose which forms to release to make room. Every molt stays a real trade.</p>
       <p class="muted">Each zone is deadlier than the last: tougher beasts, poison, enrage, and bosses that can end a run. Pick forms that cover your weaknesses.</p>
       <hr class="sep">
-      <p>Fall in battle and the run ends — but you keep how deep you got. Then you crawl again.</p>
+      <p><b>Two ways to play.</b></p>
+      <p><b>⚔️ Campaign</b> — a path of <b>300 levels</b> across <b>30 chapters</b>, ending with the god <b>Zephyrion</b>. Finish each level with more HP for more stars: <b>≥75% = ⭐⭐⭐</b>, <b>≥50% = ⭐⭐</b>, else ⭐. Each chapter is its own crawl — fall and it resets, so build wisely. Earn <b>18★</b> in a chapter to unlock the next.</p>
+      <p><b>♾️ Endless Crawl</b> — the original: descend forever, each zone deadlier than the last. Fall and the run ends — but you keep how deep you got. Chase your personal best.</p>
       <button class="btn" data-back style="margin-top:8px">Got it</button>
     </div>
   </div>
@@ -582,6 +648,25 @@ function buildRooms(zone){
 /* ============================ STATE ============================ */
 let G = null;               // current run
 const SAVE_KEY='molt_save_v1', BEST_KEY='molt_best_v1';
+// ---- Two modes: 'endless' (the classic crawl) and 'campaign' (a starred 300-level path) ----
+const RUN_KEYS = { endless:'molt_save_v1', campaign:'molt_camp_run_v1' };
+const CAMP_KEY = 'molt_camp_v1';
+const CH_COUNT = 30, LVL_PER_CH = 10, CAMP_LEVELS = CH_COUNT*LVL_PER_CH;  // 300
+const CHAPTER_GATE = 18;    // stars needed in a chapter (of 30) to unlock the next
+function runKeyFor(mode){ return RUN_KEYS[mode] || RUN_KEYS.endless; }
+// campaign progress: best stars earned per level (1..300)
+let CAMP = loadCamp();
+function loadCamp(){ try{ const c=JSON.parse(localStorage.getItem(CAMP_KEY)); if(c&&c.stars) return c; }catch(e){} return {stars:{}}; }
+function saveCamp(){ try{ localStorage.setItem(CAMP_KEY, JSON.stringify(CAMP)); }catch(e){} }
+function levelStars(L){ return CAMP.stars[L]||0; }
+function chapterOf(L){ return Math.ceil(L/LVL_PER_CH); }
+function chapterFirstLevel(c){ return (c-1)*LVL_PER_CH+1; }
+function chapterStars(c){ let s=0; for(let L=chapterFirstLevel(c); L<chapterFirstLevel(c)+LVL_PER_CH; L++) s+=levelStars(L); return s; }
+function chapterCleared(c){ for(let L=chapterFirstLevel(c); L<chapterFirstLevel(c)+LVL_PER_CH; L++){ if(!levelStars(L)) return false; } return true; }
+function chapterUnlocked(c){ return c<=1 || chapterStars(c-1) >= CHAPTER_GATE; }
+function totalStars(){ let s=0; for(let L=1; L<=CAMP_LEVELS; L++) s+=levelStars(L); return s; }
+function highestUnlockedChapter(){ let c=1; while(c<CH_COUNT && chapterUnlocked(c+1)) c++; return c; }
+function recordStars(L,st){ if(st>levelStars(L)){ CAMP.stars[L]=st; saveCamp(); } }
 let muted = localStorage.getItem('molt_mute')==='1';
 let selForms = [];          // molt selection
 const FORM_CAP = 15;        // a shell can only hold so many forms — no infinite stacking
@@ -646,9 +731,9 @@ function critMult(){ return 2 + countP('critmaster'); }
 function dodgeChance(){ return clamp(45 + pSpd(), 45, 92); }
 
 /* ============================ SAVE / LOAD ============================ */
-function save(){ if(G) try{ localStorage.setItem(SAVE_KEY, JSON.stringify(G)); }catch(e){} }
-function loadSave(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){ return null; } }
-function clearSave(){ localStorage.removeItem(SAVE_KEY); }
+function save(){ if(G) try{ localStorage.setItem(runKeyFor(G.mode), JSON.stringify(G)); }catch(e){} }
+function loadSave(mode){ try{ return JSON.parse(localStorage.getItem(runKeyFor(mode))); }catch(e){ return null; } }
+function clearSave(mode){ localStorage.removeItem(runKeyFor(mode)); }
 function getBest(){ return parseInt(localStorage.getItem(BEST_KEY)||'0',10); }
 function setBest(z){ if(z>getBest()) localStorage.setItem(BEST_KEY, String(z)); }
 
@@ -656,24 +741,70 @@ function setBest(z){ if(z>getBest()) localStorage.setItem(BEST_KEY, String(z)); 
 function newRun(){
   busy=false;
   G = {
-    screen:'map', zone:1, room:0, rooms:buildRooms(1),
+    mode:'endless', screen:'map', zone:1, room:0, rooms:buildRooms(1),
     hp:BASE.maxHp, forms:[], enemy:null, log:[],
     startForm:true, moltsDone:0, kills:0, phoenixUsed:false,
   };
-  clearSave();
+  clearSave('endless');
   applyZoneTheme(1);
   // opening molt: choose your very first 2 forms
   openMolt(true);
 }
 
+/* ============================ CAMPAIGN ============================ */
+// A chapter is a fresh mini-run of 10 levels. Build persists across the chapter;
+// each level heals you to full and is star-graded on the HP you finish with.
+function startChapter(c){
+  resetBase(); busy=false;
+  const L=chapterFirstLevel(c);
+  G = {
+    mode:'campaign', chapter:c, level:L, screen:'map',
+    zone:L, room:0, rooms:buildRooms(L),
+    hp:BASE.maxHp, forms:[], enemy:null, log:[],
+    startForm:true, moltsDone:0, kills:0, phoenixUsed:false, levelCleared:false,
+  };
+  clearSave('campaign');
+  applyZoneTheme(L);
+  openMolt(true);   // choose your first 2 forms for the chapter
+}
+// begin (or re-begin) a single level within the current chapter, healed to full
+function startLevel(L){
+  G.level=L; G.chapter=chapterOf(L);
+  G.zone=L; G.room=0; G.rooms=buildRooms(L);
+  G.hp=pMax();               // full HP so the star grade is a fair test of the level
+  G.levelCleared=false; G.awaitLevel=false;
+  applyZoneTheme(L);
+  save();
+  enterRoom();
+}
+function starsForHp(){ const pct=G.hp/pMax(); return pct>=0.75?3 : pct>=0.5?2 : 1; }
+// called the moment a campaign level's boss falls (before any reward-molt heal)
+function gradeLevelNow(){
+  const st=starsForHp();
+  G.lastStars=st;
+  recordStars(G.level, st);
+}
+function finishLevel(){
+  const st=G.lastStars||1;
+  const isChapterEnd = (G.level % LVL_PER_CH)===0;
+  const isFinale = G.level>=CAMP_LEVELS;
+  showLevelComplete(st, isChapterEnd, isFinale);
+}
+
 function nextRoom(){
   G.room++;
   if(G.room >= G.rooms.length){
-    // zone complete -> descend
-    G.zone++;
-    G.room=0; G.rooms=buildRooms(G.zone);
-    setBest(G.zone);
-    applyZoneTheme(G.zone);
+    if(G.mode==='campaign'){
+      // campaign levels end at the boss (handled in endCombat); reaching here means
+      // a non-boss overrun — clamp back into the level safely.
+      G.room=G.rooms.length-1;
+    } else {
+      // zone complete -> descend
+      G.zone++;
+      G.room=0; G.rooms=buildRooms(G.zone);
+      setBest(G.zone);
+      applyZoneTheme(G.zone);
+    }
   }
   save();
   enterRoom();
@@ -905,8 +1036,9 @@ $('#moltConfirm').onclick=()=>{
   advanceAfterMolt();
 };
 function advanceAfterMolt(){
-  if(G.pendingStart){ G.pendingStart=false; enterRoom(); }
-  else nextRoom();
+  if(G.pendingStart){ G.pendingStart=false; enterRoom(); return; }
+  if(G.mode==='campaign' && G.levelCleared){ G.levelCleared=false; finishLevel(); return; }
+  nextRoom();
 }
 // rough "keep-worthiness" of a form: rarity first, then stat weight + a special bonus
 function formValue(id){ const f=FORM[id];
@@ -1412,10 +1544,20 @@ const EMOLTS = [
   {id:'swift',    icon:'💨', name:'Swift',       apply:(e)=>{ e.eDodge = 24; }},
 ];
 function rollEnemyMolts(e, zone, type){
-  let n = Math.min(3, Math.floor(zone/4));           // regular foes
-  if(type==='e') n += 1;                             // elites
-  if(e.boss)     n += (zone>=6?2 : zone>=2?1 : 0);   // bosses mutate more, but not the very first
-  n = Math.min(e.boss?5:4, n);
+  const camp = G && G.mode==='campaign';
+  let n;
+  if(camp){
+    // campaign is curated: mutations stay sparse so fights are about the fight,
+    // not a pile of stacked debuffs (the god already has a fearsome base kit).
+    if(type==='e') n = 1;
+    else if(e.boss) n = zone>=150 ? 2 : 1;
+    else n = zone>=120 ? 1 : 0;
+  } else {
+    n = Math.min(3, Math.floor(zone/4));             // regular foes
+    if(type==='e') n += 1;                            // elites
+    if(e.boss)     n += (zone>=6?2 : zone>=2?1 : 0);  // bosses mutate more, but not the very first
+  }
+  n = Math.min(camp?3:(e.boss?5:4), n);
   const pool=EMOLTS.slice(); e.molts=[];
   for(let i=0;i<n && pool.length;i++){
     const m=pool.splice(rand(pool.length),1)[0];
@@ -1427,15 +1569,20 @@ function rollEnemyMolts(e, zone, type){
 function startCombat(type){
   let tmpl, isBoss=false;
   // the god rules the summit of each 1000-level cycle; otherwise bosses cycle by tier
-  if(type==='B'){ tmpl = (G.zone%CYCLE===0) ? GOD_BOSS : BOSSES[(G.zone-1)%BOSSES.length]; isBoss=true; }
+  if(type==='B'){
+    const godFinale = (G.mode==='campaign' && G.level>=CAMP_LEVELS) || (G.mode!=='campaign' && G.zone%CYCLE===0);
+    tmpl = godFinale ? GOD_BOSS : BOSSES[(G.zone-1)%BOSSES.length]; isBoss=true;
+  }
   else if(type==='e'){ tmpl=pick(Object.values(ELITES)); isBoss=true; }
   else { tmpl=BEASTS[pick(zonePool(G.zone))]; }
-  // Difficulty scales LINEARLY and never stops — always relative to your depth, so
-  // enemies keep pace with your compounding build even after the battlegrounds loop.
-  // (The 18% chip-damage floor guarantees you can always die, even as a pure tank.)
+  // Difficulty scales with depth. ENDLESS ramps hard and never stops — it's meant to
+  // eventually out-scale even a maxed 15-form build (death is the score). CAMPAIGN uses
+  // a much gentler curve so all 300 levels stay beatable by a well-built beast, peaking
+  // at a brutal-but-fair god at level 300.
   const z=G.zone-1;
-  const hpScale = 1 + 0.42*z;
-  const powScale= 1 + 0.32*z;
+  const camp=(G.mode==='campaign');
+  const hpScale = camp ? 1 + 0.004*z : 1 + 0.42*z;
+  const powScale= camp ? 1 + 0.004*z : 1 + 0.32*z;
   const eHp=Math.round(tmpl.hp*hpScale*(type==='e'?1.2:1));
   const ePow=Math.round(tmpl.power*powScale);
   G.enemy={
@@ -1819,6 +1966,9 @@ function endCombat(won){
     sfx.win();
     G.kills++;
     const wasZoneBoss = !!(G.enemy && G.enemy.zoneBoss);
+    // campaign: lock in the star grade from the HP you finished the level with,
+    // BEFORE the reward molt changes your max HP.
+    if(wasZoneBoss && G.mode==='campaign'){ G.levelCleared=true; gradeLevelNow(); }
     // render the killing blow with the enemy still on screen, THEN clear it
     logMsg(wasZoneBoss?`👑 The boss falls. Its essence is yours to take.`:`✔️ The beast falls still.`,'good'); renderCombat();
     setTimeout(()=>{
@@ -1830,7 +1980,8 @@ function endCombat(won){
   }else{
     sfx.lose();
     renderCombat();
-    setTimeout(()=>gameOver(), 700);
+    if(G.mode==='campaign') setTimeout(()=>campaignFail(), 700);
+    else setTimeout(()=>gameOver(), 700);
   }
 }
 
@@ -1838,7 +1989,7 @@ function endCombat(won){
 function gameOver(){
   busy=false;
   setBest(G.zone);
-  clearSave();
+  clearSave('endless');
   $('#overTitle').textContent = 'You fell';
   $('#overIcon').textContent='💀';
   $('#overSub').textContent = `Your shell cracks for the last time in ${zoneName(G.zone)}.`;
@@ -1855,14 +2006,98 @@ function gameOver(){
 
 function victory(){ /* endless — no hard win; depth is the score */ }
 
+/* ===================== CAMPAIGN UI ===================== */
+function starRow(filled, total){
+  let h='';
+  for(let i=0;i<total;i++) h+=`<span class="star${i<filled?' on':''}">★</span>`;
+  return h;
+}
+function showLevelComplete(st, isChapterEnd, isFinale){
+  // mid-chapter: keep a resumable marker so closing on this screen isn't a re-fight
+  if(!(isChapterEnd||isFinale)){ G.awaitLevel=true; save(); }
+  $('#lcStars').innerHTML = starRow(st,3);
+  const btns=$('#lcBtns'); btns.innerHTML='';
+  if(isFinale){
+    $('#lcIcon').textContent='👑';
+    $('#lcTitle').textContent='The god is felled';
+    $('#lcSub').innerHTML=`You stand over <b>Zephyrion</b> at the summit of the Empyrean Throne. The 300 levels are yours.`;
+    clearSave('campaign');
+    addBtn(btns,'To the Level Map','btn',()=>{ openLevelMap(); });
+  } else if(isChapterEnd){
+    const c=G.chapter, cs=chapterStars(c), nextC=c+1;
+    $('#lcIcon').textContent='🏆';
+    $('#lcTitle').textContent=`Chapter ${c} complete`;
+    const unlockedNext = nextC<=CH_COUNT && chapterUnlocked(nextC);
+    $('#lcSub').innerHTML=`${themeFor(chapterFirstLevel(c)).name} — <b>${cs}/30 ★</b>.` +
+      (nextC<=CH_COUNT ? (unlockedNext ? ` Chapter ${nextC} is open!` : ` <span class="muted">Earn ${CHAPTER_GATE}★ here to unlock Chapter ${nextC} (you have ${cs}).</span>`) : '');
+    clearSave('campaign');
+    if(unlockedNext) addBtn(btns,`Chapter ${nextC} ▸`,'btn',()=>{ startChapter(nextC); });
+    addBtn(btns,'Level Map','btn ghost',()=>{ openLevelMap(); });
+  } else {
+    $('#lcIcon').textContent = st===3?'🌟':'✨';
+    $('#lcTitle').textContent=`Level ${G.level} cleared`;
+    $('#lcSub').innerHTML = st===3?`Flawless — barely a scratch.`: st===2?`Bloodied, but standing.`:`You survived by a thread.`;
+    const next=G.level+1;
+    addBtn(btns,`Next Level ▸`,'btn',()=>{ startLevel(next); });
+    addBtn(btns,'Level Map','btn ghost',()=>{ openLevelMap(); });
+  }
+  show('levelcomplete');
+}
+function addBtn(host,label,cls,fn){ const b=document.createElement('button'); b.className=cls; b.textContent=label; b.onclick=fn; host.appendChild(b); }
+
+function campaignFail(){
+  busy=false;
+  const c=G.chapter;
+  $('#cfSub').innerHTML=`Your shell cracks on <b>Level ${G.level}</b>. The chapter resets — crawl it again, a little wiser.`;
+  clearSave('campaign');
+  G=null;
+  $('#cfRetry').onclick=()=>{ startChapter(c); };
+  show('campfail');
+}
+
+function openLevelMap(){ resetTheme(); G=null; renderLevelMap(); show('levelmap'); }
+function renderLevelMap(){
+  $('#campTotalStars').textContent = totalStars();
+  const host=$('#chapterList'); host.innerHTML='';
+  const runSave = loadSave('campaign');   // an in-progress chapter, if any
+  for(let c=1;c<=CH_COUNT;c++){
+    const unlocked=chapterUnlocked(c), cleared=chapterCleared(c), cs=chapterStars(c);
+    const first=chapterFirstLevel(c);
+    const inProgress = runSave && runSave.chapter===c;
+    const el=document.createElement('div');
+    el.className='chapcard'+(unlocked?'':' locked')+(cleared?' cleared':'');
+    let pips='';
+    for(let i=0;i<LVL_PER_CH;i++){ const L=first+i; const s=levelStars(L);
+      const cur=inProgress && runSave.level===L;
+      pips+=`<span class="lvlpip${s?' done':''}${cur?' cur':''}">${s?('★'.repeat(s)):(L===CAMP_LEVELS?'👑':(i+1))}</span>`; }
+    el.innerHTML=`
+      <div class="chaptop">
+        <div class="chapname">${unlocked?'':'🔒 '}Chapter ${c}<span class="chapthm"> · ${themeFor(first).name}</span></div>
+        <div class="chapstars">${cs}/30 ★</div>
+      </div>
+      <div class="pips">${pips}</div>
+      <div class="chapfoot">${
+        !unlocked ? `Needs <b>${CHAPTER_GATE}★</b> in Chapter ${c-1} to unlock`
+        : inProgress ? `<b style="color:var(--pick2)">▸ In progress — continue</b>`
+        : cleared ? `Cleared${c<CH_COUNT&&!chapterUnlocked(c+1)?` · earn ${CHAPTER_GATE}★ to open Ch ${c+1}`:''}`
+        : `Tap to begin`
+      }</div>`;
+    if(unlocked){ el.onclick=()=>{ if(inProgress) resumeRun('campaign'); else startChapter(c); }; }
+    host.appendChild(el);
+  }
+}
+
 /* ============================ WIRING ============================ */
-$('#newBtn').onclick=()=>{ resetBase(); newRun(); };
-$('#continueBtn').onclick=()=>{ resumeRun(); };
+$('#campaignBtn').onclick=()=>{ openLevelMap(); };
+$('#endlessBtn').onclick=()=>{ refreshEndless(); show('endless'); };
+$('#endNewBtn').onclick=()=>{ resetBase(); newRun(); };
+$('#endContinueBtn').onclick=()=>{ resumeRun('endless'); };
 $('#howBtn').onclick=()=>show('how');
-$$('[data-back]').forEach(b=>b.onclick=()=>show('title'));
+$$('[data-back]').forEach(b=>b.onclick=()=>{ resetTheme(); refreshTitle(); show('title'); });
 $('#overAgain').onclick=()=>{ resetBase(); newRun(); };
 $('#overMenu').onclick=()=>{ resetTheme(); refreshTitle(); show('title'); };
-$('#mapMenu').onclick=()=>{ save(); refreshTitle(); show('title'); };
+$('#cfMap').onclick=()=>{ openLevelMap(); };
+$('#mapMenu').onclick=()=>{ save(); const m=G&&G.mode; resetTheme(); if(m==='campaign') openLevelMap(); else { refreshTitle(); show('title'); } };
 function resetTheme(){ document.body.style.background=''; document.documentElement.style.background='';
   ['--panel','--panel2','--line','--zoneaccent','--zonedim'].forEach(p=>document.documentElement.style.removeProperty(p)); }
 $('#muteBtn').onclick=()=>{ muted=!muted; localStorage.setItem('molt_mute',muted?'1':'0'); updateMute(); if(!muted) sfx.pick(); };
@@ -1873,9 +2108,9 @@ function updateMute(){ $('#muteBtn').textContent = muted?'🔇 Muted':'🔊 Soun
 let BASE_DEFAULT={...BASE};
 function resetBase(){ Object.assign(BASE, BASE_DEFAULT); }
 
-function resumeRun(){
+function resumeRun(mode){
   busy=false;
-  const s=loadSave(); if(!s) return;
+  const s=loadSave(mode); if(!s) return;
   // treasure bonuses were baked into BASE and NOT saved separately;
   // to keep saves robust we store deltas — recompute from saved base if present
   resetBase();
@@ -1891,6 +2126,7 @@ function resumeRun(){
   }
   applyZoneTheme(G.zone);
   const scr=G.screen||'map';
+  if(G.awaitLevel){ G.awaitLevel=false; showLevelComplete(G.lastStars||1, (G.level%LVL_PER_CH)===0, G.level>=CAMP_LEVELS); return; }
   if(G.pendingShed){ shedList=null; shedSel=[]; renderShed(); show('molt'); busy=false; }
   else if(scr==='combat' && G.enemy){ show('combat'); renderCombat(); busy=false; }
   else if(scr==='molt' && G.offer){ selForms=[]; renderMolt(!!G.pendingStart); show('molt'); }
@@ -1902,12 +2138,18 @@ const _save=save;
 save=function(){ if(G){ G.base={...BASE}; } _save(); };
 
 function refreshTitle(){
-  const s=loadSave();
-  $('#continueBtn').style.display = s ? 'block':'none';
   const best=getBest();
   $('#hsVal').textContent = 'Zone '+Math.max(1,best);
   $('#hsSub').textContent = best ? themeFor(best).name + (best>=CYCLE?' — a god-slayer!':'') : 'no crawl yet — good luck down there';
+  const cst=totalStars();
+  const campEl=$('#campProgress'); if(campEl) campEl.textContent = cst>0 ? `Campaign · ${cst}★ · Ch ${highestUnlockedChapter()}` : 'Campaign · not started';
   updateMute();
+}
+function refreshEndless(){
+  const s=loadSave('endless');
+  $('#endContinueBtn').style.display = s ? 'block':'none';
+  const best=getBest();
+  $('#endBest').textContent = best ? 'Deepest: Zone '+best+' — '+themeFor(best).name : 'No crawl yet';
 }
 
 // boot
